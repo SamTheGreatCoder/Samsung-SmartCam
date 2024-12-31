@@ -1,0 +1,99 @@
+#!/bin/sh
+
+# callsyntax: $0 $1=INTERFACE $2=OP $3=IP $4=CONFIG_PATH $5=LEASE_PATH
+
+SERVICE_NAME="udhcpd_service"
+SERVICE_PATH="/tmp/$SERVICE_NAME"
+INTERFACE=$1
+OP=$2
+IP=$3
+if [ -z $4 ]; then
+    CONFIG_PATH="$SERVICE_PATH/$INTERFACE.conf"
+else
+    CONFIG_PATH=$4
+fi
+if [ -z $5 ]; then
+    LEASE_PATH="$SERVICE_PATH/$INTERFACE.lease"
+else
+    LEASE_PATH=$5
+fi
+LOG_PREFIX="$SERVICE_NAME($INTERFACE):"
+NOTIFY_PATH="$SERVICE_PATH/$INTERFACE"
+EXEC="udhcpd -- $CONFIG_PATH -S"
+
+if [ ! -d $SERVICE_PATH ]; then
+    mkdir $SERVICE_PATH
+fi
+
+start() {
+    # the ip of device should be the gateway ip
+    echo -e "\033[32m$LOG_PREFIX setting ip addr $IP\033[0m"
+    ifconfig $INTERFACE $IP
+
+    echo -e "\033[32m$LOG_PREFIX deleting routers\033[0m"
+    while route del default gw 0.0.0.0 dev $INTERFACE ; do
+        :
+    done
+
+    echo -e "\033[32m$LOG_PREFIX adding router $IP\033[0m"
+    route add default gw $IP dev $INTERFACE metric 0
+
+    touch $LEASE_PATH
+    start-stop-daemon -S -q -x $EXEC
+    case $? in
+        0)
+            echo -e "\033[32m$LOG_PREFIX started\033[0m"
+            network_notifier $NOTIFY_PATH "started"
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            network_notifier $NOTIFY_PATH "failed"
+            ;;
+    esac
+}
+
+stop() {
+    start-stop-daemon -K -q -x $EXEC
+    case $? in
+        0)
+            ifconfig $INTERFACE 0.0.0.0 2> /dev/null
+            echo -e "\033[32m$LOG_PREFIX stopped\033[0m"
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            ;;
+    esac
+    network_notifier $NOTIFY_PATH "stopped"
+
+}
+
+status() {
+    start-stop-daemon -K -t -q -x $EXEC
+    case $? in
+        0)
+            echo -e "\033[33m$LOG_PREFIX running\033[0m"
+            network_notifier $NOTIFY_PATH "started"
+            ;;
+        *)
+            echo -e "\033[33m$LOG_PREFIX not running($?)\033[0m"
+            network_notifier $NOTIFY_PATH "failed"
+            ;;
+    esac
+}
+
+if [ -z $INTERFACE ]; then
+    echo -e "Usage: $0 interface [start|stop|status] ip config_path lease_path"
+    exit 1
+fi
+
+case $OP in
+    start|stop|status)
+        $OP
+        ;;
+    *)
+        echo -e "Usage: $0 interface [start|stop|status] ip config_path lease_path"
+        exit 1
+        ;;
+esac
+
+exit $?

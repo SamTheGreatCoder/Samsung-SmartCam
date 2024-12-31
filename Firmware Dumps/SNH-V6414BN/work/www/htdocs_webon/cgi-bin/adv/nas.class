@@ -1,0 +1,123 @@
+<?php
+define ('MAX_IQN_LIST', 15);
+
+class NasConfiguration
+{
+
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+	public 	$result;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array( 'Command'=>CMD_NAS_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo		= array( 'Enabled'					=> array('value'=>0, 'type'=>'c1'),
+											'Name'					=> array('value'=>'', 'type'=>'A32'),
+											'IPAddress'				=> array('value'=>'', 'type'=>'A16'),
+											'Id'						=> array('value'=>'', 'type'=>'A32'),
+											'Password'				=> array('value'=>'', 'type'=>'A32'),
+											'DefaultFolder'		=> array('value'=>'', 'type'=>'A128'),
+											'FileSystem'			=> array('value'=>0, 'type'=>'i1'),
+											'ActionType'			=> array('value'=>0, 'type'=>'c1'),
+											'Reserved'				=> array('value'=>'','type'=>'A127'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		if ($this->headerInfo['Action'] == ACTION_START || $this->headerInfo['Action'] == ACTION_REMOVE)
+		{
+			$dataArray = unpack('i1ErrorStatus', $_payload);
+			$this->result = $dataArray['ErrorStatus'];
+		}
+		else
+		{
+			SetData($this->dataInfo, $this->payload, $_payload);
+		}
+	}
+}
+
+
+class ISCSIConfiguration
+{
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+	public	$result;
+	public	$iqnList;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array( 'Command'=>CMD_ISCSI_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo		= array( 'Enabled'		=> array('value'=>0, 'type'=>'c1'),
+											'Idx'			=> array('value'=>0, 'type'=>'i1'),
+											'Port'		=> array('value'=>0, 'type'=>'i1'),
+											'IPAddress' => array('value'=>'', 'type'=>'A64'),
+											'ID' 			=> array('value'=>'', 'type'=>'A32'),
+											'Password' 	=> array('value'=>'', 'type'=>'A32'),
+											'IQN'			=> array('value'=>'', 'type'=>'A256'));
+	}
+
+	function XMLtoArray($_xmlMsg)
+	{
+		if ($this->headerInfo['Action'] == ACTION_START) {
+			$GLOBALS['XMLArray'] = simplexml_load_string($_xmlMsg);
+		}
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		if ($this->headerInfo['Action'] == ACTION_START || $this->headerInfo['Action'] == ACTION_REMOVE)
+		{
+			$dataArray = unpack('i1ErrorStatus', $_payload);
+			$this->result = $dataArray['ErrorStatus'];
+		}
+		else
+		{
+			SetData($this->dataInfo, $this->payload, $_payload);
+		}
+	}
+}
+
+class ISCSIDiscovery
+{
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+	public	$iqnList;
+
+	function __construct($_action=ACTION_START)
+	{
+		$this->headerInfo 	= array( 'Command'=>CMD_ISCSI_DISCOVERY, 'Action'=>$_action);
+		$this->dataInfo		= array( 'Enabled'		=> array('value'=>0, 'type'=>'c1'),
+											'Idx'			=> array('value'=>0, 'type'=>'i1'),
+											'Port'		=> array('value'=>0, 'type'=>'i1'),
+											'IPAddress' => array('value'=>'', 'type'=>'A64'),
+											'ID' 			=> array('value'=>'', 'type'=>'A32'),
+											'Password' 	=> array('value'=>'', 'type'=>'A32'),
+											'IQN'			=> array('value'=>'', 'type'=>'A256'));		
+	}
+
+	function XMLtoArray($_xmlMsg)
+	{
+		$xmlArray = simplexml_load_string($_xmlMsg);
+		SetData($this->dataInfo, $this->payload, $xmlArray);
+	}
+	
+	function PayloadToArray($_payload)
+	{
+		$this->iqnList = array(); 
+		$unpackFormat = MakeUnpackFormat('iqn', 256, MAX_IQN_LIST);
+		$dataArray = unpack($unpackFormat, $_payload);
+		for ($index=0; $index<MAX_IQN_LIST; ++$index) {
+			$this->iqnList[$index] = $dataArray['iqn'.$index];
+		}
+	}
+}
+?>

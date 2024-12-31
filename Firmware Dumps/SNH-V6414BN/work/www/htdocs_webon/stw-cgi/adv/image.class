@@ -1,0 +1,327 @@
+<?php
+define('MAX_SMARTCODEC_AREA', 			5);
+define('MAX_PRIVACY_AREA',					12);
+
+class ImageConfiguration
+{
+	public 	$vsToken = 'VST001';
+	public	$forcePersistance;
+	public 	$privacyAreaConfig;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public	$dataInfo2;
+	public 	$headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_IMAGING, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'BLCEnabled'	=> array('value'=>0, 'type'=>'c1'),
+											'BLCLevel'		=> array('value'=>0, 'type'=>'i1'),
+											'Brightness'	=> array('value'=>0, 'type'=>'i1'),
+											'Saturation'	=> array('value'=>0, 'type'=>'i1'),
+											'Contrast'		=> array('value'=>0, 'type'=>'i1'),
+											'ExMode' 		=> array('value'=>0, 'type'=>'c1'),
+											'ExPriority' 	=> array('value'=>0, 'type'=>'c1'),
+											'ExAreaBottom' => array('value'=>0, 'type'=>'i1'),
+											'ExAreaTop' 	=> array('value'=>0, 'type'=>'i1'),
+											'ExAreaRight' 	=> array('value'=>0, 'type'=>'i1'),
+											'ExAreaLeft' 	=> array('value'=>0, 'type'=>'i1'),
+											'ExMinTime' 	=> array('value'=>0, 'type'=>'i1'),
+											'ExMaxTime' 	=> array('value'=>0, 'type'=>'i1'),
+											'ExMinGain' 	=> array('value'=>0, 'type'=>'i1'),
+											'ExMaxGain' 	=> array('value'=>0, 'type'=>'i1'),
+											'ExMinIris' 	=> array('value'=>0, 'type'=>'i1'),
+											'ExMaxIris' 	=> array('value'=>0, 'type'=>'i1'),
+											'ExposureTime' => array('value'=>0, 'type'=>'i1'),
+											'ExGain' 		=> array('value'=>0, 'type'=>'i1'),
+											'ExIris' 		=> array('value'=>0, 'type'=>'i1'),
+											'AutoFocueMode'=> array('value'=>0, 'type'=>'c1'),
+											'DefaultSpeed'	=> array('value'=>0, 'type'=>'i1'),
+											'NearLimit'		=> array('value'=>0, 'type'=>'i1'),
+											'FarLimit'		=> array('value'=>0, 'type'=>'i1'),
+											'IRCutFilter'	=> array('value'=>0, 'type'=>'c1'),
+											'Sharpness'		=> array('value'=>0, 'type'=>'i1'),
+											'WDRMode'		=> array('value'=>0, 'type'=>'c1'),
+											'WDRLevel'		=> array('value'=>0, 'type'=>'i1'),
+											'WBMode'			=> array('value'=>0, 'type'=>'c1'),
+											'WBCrGain'		=> array('value'=>0, 'type'=>'i1'),
+											'WBCbGain'		=> array('value'=>0, 'type'=>'i1'));
+
+		$this->dataInfo2 	= array(	'FlipMode'		=> array('value'=>0, 'type'=>'c1'),
+											'MirrorMode'	=> array('value'=>0, 'type'=>'c1'),
+											'Reserved'		=> array('value'=>'', 'type'=>'A128'));
+
+		$this->privacyAreaConfig= new PrivacyAreaConfig();
+		$this->unpackFormat 		=	MakeDataFormat($this->dataInfo).
+											'A'.$this->privacyAreaConfig->payloadLength.'privacyArea/'.
+											MakeDataFormat($this->dataInfo2);
+		if ($this->headerInfo['Action'] == ACTION_GET)
+		{
+			$this->payload = pack("A64", $this->vsToken);
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $name=>$data)
+		{
+			if ($name == 'FlipMode' || $name == 'MirrorMode')
+			{
+				$this->dataInfo2[$name]['value'] = $data;
+			}
+			else if ($name == 'PrivacyArea')
+			{
+				$index = 0;
+				$colorVal = 5;
+
+				foreach ($data as $key=>$value)
+				{
+					if ($key== 'Enabled')
+					{
+						$this->privacyAreaConfig->dataInfo['Enabled']['value'] = $value;
+					}
+					else if ($key == 'Color')
+					{
+						$colorVal = $value;
+					}
+					else if ($key == 'Count')
+					{
+						$cnt = (int)$value;
+						for ($index2=$cnt; $index2<MAX_PRIVACY_AREA; ++$index2)
+						{
+							$this->privacyAreaConfig->privacyArea[$index2]->dataInfo['Enabled']['value']	= 0;
+							$this->privacyAreaConfig->privacyArea[$index2]->dataInfo['Color']['value']		= $colorVal;
+							$this->privacyAreaConfig->privacyArea[$index2]->dataInfo['Bottom']['value'] 	= 0;
+							$this->privacyAreaConfig->privacyArea[$index2]->dataInfo['Top']['value'] 		= 0;
+							$this->privacyAreaConfig->privacyArea[$index2]->dataInfo['Right']['value'] 		= 0;
+							$this->privacyAreaConfig->privacyArea[$index2]->dataInfo['Left']['value'] 		= 0;
+							$this->privacyAreaConfig->privacyArea[$index2]->payload = MakePayload($this->privacyAreaConfig->privacyArea[$index2]->dataInfo);
+						}
+					}
+					else
+					{
+						$this->privacyAreaConfig->privacyArea[$index]->dataInfo['Enabled']['value'] = 1;
+						$this->privacyAreaConfig->privacyArea[$index]->dataInfo['Color']['value']  = $colorVal;
+						SetData($this->privacyAreaConfig->privacyArea[$index]->dataInfo, $this->privacyAreaConfig->privacyArea[$index]->payload, $value);
+						$index++;
+					}
+				}
+				$this->privacyAreaConfig->SetPayload();
+			}
+			else
+			{
+				SetData($this->dataInfo, $this->payload, $xmlData);
+			}
+		}
+
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		SetData($this->dataInfo, $this->payload, $dataArray);
+		$this->dataInfo2['FlipMode']['value'] 	= $dataArray['FlipMode'];
+		$this->dataInfo2['MirrorMode']['value']	= $dataArray['MirrorMode'];
+		$this->privacyAreaConfig->UnpackData($dataArray['privacyArea']);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = 	pack("A64", $this->vsToken).MakePayload($this->dataInfo).$this->privacyAreaConfig->payload.
+								MakePayload($this->dataInfo2).pack("c1", $this->forcePersistance);
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg .= "\t".'<FlipMode>'.$this->dataInfo2['FlipMode']['value'].'</FlipMode>'."\r\n";
+		$msg .= "\t".'<MirrorMode>'.$this->dataInfo2['MirrorMode']['value'].'</MirrorMode>'."\r\n";
+		$msg .= $this->privacyAreaConfig->GetXMLData($_menu);
+		return $msg;
+	}
+}
+
+class PrivacyAreaConfig
+{
+	public 	$privacyArea;
+
+	public 	$payload;
+	public	$dataInfo;
+	public 	$unpackFormat;
+	public 	$payloadLength;
+
+	function __construct()
+	{
+		for ($index=0; $index<MAX_PRIVACY_AREA; ++$index)
+		{
+			$this->privacyArea[$index] = new PrivacyArea();
+		}
+		$this->dataInfo 		= array('Enabled' => array('value'=>0, 'type'=>'c1'));
+		$this->unpackFormat 	= MakeDataFormat($this->dataInfo).MakeUnpackFormat('area', GetDataInfoLength($this->privacyArea[0]->dataInfo), MAX_PRIVACY_AREA);
+		$this->payloadLength 	= 1+(GetDataInfoLength($this->privacyArea[0]->dataInfo)*MAX_PRIVACY_AREA);
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$dataArray = unpack($this->unpackFormat, $_dataArray);
+		$this->dataInfo['Enabled']['value'] = $dataArray['Enabled'];
+		for ($index=0; $index<MAX_PRIVACY_AREA; ++$index)
+			SetData($this->privacyArea[$index]->dataInfo, $this->privacyArea[$index]->payload, $dataArray['area'.$index]);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->privacyArea, MAX_PRIVACY_AREA);
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = "\t".'<PrivacyArea>'."\r\n";
+		$msg .=  "\t\t".'<Enabled>'.$this->dataInfo['Enabled']['value'].'</Enabled>'."\r\n";
+		$msg .=  "\t\t".'<Color>'.$this->privacyArea[0]->dataInfo['Color']['value'].'</Color>'."\r\n";
+		for ($index=0; $index<MAX_PRIVACY_AREA; ++$index)
+		{
+			if ($this->privacyArea[$index]->dataInfo['Enabled']['value'] == TRUE)
+			{
+				$msg .= "\t\t".'<PrivacyMask'.$index.'>'."\r\n";
+				$msg .= $this->privacyArea[$index]->GetXMLData($_menu);
+				$msg .= "\t\t".'</PrivacyMask'.$index.'>'."\r\n";
+			}
+		}
+		$msg .=  "\t".'</PrivacyArea>'."\r\n";
+		return $msg;
+	}
+}
+
+class PrivacyArea
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Enabled'	=> array('value'=>0, 'type'=>'c1'),
+										'Color'		=> array('value'=>0, 'type'=>'c1'),
+										'Reserved'	=> array('value'=>'', 'type'=>'A3'),
+										'Bottom'		=> array('value'=>0, 'type'=>'i1'),
+										'Top'			=> array('value'=>0, 'type'=>'i1'),
+										'Right'		=> array('value'=>0, 'type'=>'i1'),
+										'Left'		=> array('value'=>0, 'type'=>'i1'));
+	}
+}
+
+class SmartCodecConfiguration
+{
+	public 	$smartCodecArea;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command' =>CMD_SMARTCODEC, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Mode'			=> array('value'=>0, 'type'=>'c1'),
+											'QualityLevel'	=>	array('value'=>0, 'type'=>'c1'),
+											'FDSensitivity'=>	array('value'=>0, 'type'=>'c1'),
+											'Reserved'		=> array('value'=>'', 'type'=>'A127'));
+
+		for ($index=0; $index<MAX_SMARTCODEC_AREA; ++$index)
+		{
+			$this->smartCodecArea[$index] = new SmartCodecArea();
+		}
+
+		$this->unpackFormat = 'c1'.'Mode/'.'c1'.'QualityLevel/'.
+									MakeUnpackFormat('smartCodecArea', GetDataInfoLength($this->smartCodecArea[0]->dataInfo), MAX_SMARTCODEC_AREA).
+									'c1'.'FDSensitivity/'.'A127'.'Reserved';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		$areaCnt = 0;
+		foreach ($xmlArray as $name=>$data)
+		{
+			if (substr($name, 0, -1) == 'SmartCodecArea')
+			{
+				SetData($this->smartCodecArea[$areaCnt]->dataInfo, $this->smartCodecArea[$areaCnt]->payload, $data);
+				$areaCnt++;
+			}
+			else
+			{
+				$this->dataInfo[$name]['value'] = $data;
+			}
+		}
+
+		for ($index=$areaCnt; $index<MAX_SMARTCODEC_AREA; ++$index)
+		{
+			$this->smartCodecArea[$index]->InitData();
+		}
+
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+
+		SetData($this->dataInfo, $this->payload, $dataArray);
+		for ($index=0; $index<MAX_SMARTCODEC_AREA; ++$index)
+		{
+			SetData($this->smartCodecArea[$index]->dataInfo, $this->smartCodecArea[$index]->payload, $dataArray['smartCodecArea'.$index]);
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = 	pack('c1', $this->dataInfo['Mode']['value']).
+								pack('c1', $this->dataInfo['QualityLevel']['value']).
+								GetPayloads($this->smartCodecArea, MAX_SMARTCODEC_AREA).
+								pack('c1', $this->dataInfo['FDSensitivity']['value']).
+								pack('A127', $this->dataInfo['Reserved']['value']);
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg .= MakeXMLData($this->dataInfo);
+		for ($index=0; $index<MAX_SMARTCODEC_AREA; ++$index)
+		{
+			$msg .= MakeXMLData($this->smartCodecArea[$index]->dataInfo);
+		}
+		return $msg;
+	}
+}
+
+class SmartCodecArea
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Enabled'		=> array('value'=>0, 'type'=>'c1'),
+										'Reserved'		=> array('value'=>'', 'type'=>'A3'),
+										'AreaBottom'	=> array('value'=>0, 'type'=>'i1'),
+										'AreaTop'		=> array('value'=>0, 'type'=>'i1'),
+										'AreaRight'		=> array('value'=>0, 'type'=>'i1'),
+										'AreaLeft'		=> array('value'=>0, 'type'=>'i1'));
+	}
+
+	function InitData()
+	{
+		$this->dataInfo['Enabled']['value']		= 0;
+		$this->dataInfo['AreaBottom']['value'] 	= 0;
+		$this->dataInfo['AreaTop']['value'] 		= 0;
+		$this->dataInfo['AreaRight']['value'] 	= 0;
+		$this->dataInfo['AreaLeft']['value'] 	= 0;
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+?>

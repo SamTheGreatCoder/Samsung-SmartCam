@@ -1,0 +1,36 @@
+<?php
+
+class NetworkTestConfiguration
+{
+    public $result;
+    
+    public $headerInfo;
+    public $payload;
+    public $dataInfo;
+
+    function __construct($_action=ACTION_START)
+    {
+        $this->headerInfo	= array('Command'=>CMD_NETWORK_TEST, 'Action'=>$_action);
+        $this->dataInfo = array('Operation' => array('value' => 0, 'type' => 'c1'));
+        $this->SetPayload();
+    }
+
+    function PayloadToArray($_payload)
+	{
+        $tmp = $this->dataInfo['Operation']['value'];
+        
+        $unpackFormat = MakeDataFormat($this->dataInfo);
+        $dataArray = unpack($unpackFormat, $_payload);
+        SetData($this->dataInfo, $this->payload, $dataArray);
+        
+        $this->result = $this->dataInfo['Operation']['value'];
+        $this->dataInfo['Operation']['value'] = $tmp;
+	}
+
+	function SetPayload()
+	{
+        $this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+?>

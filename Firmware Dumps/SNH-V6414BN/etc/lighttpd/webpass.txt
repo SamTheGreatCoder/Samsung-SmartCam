@@ -1,0 +1,2 @@
+admin:ambarella-a5s:1eadd54596ffcfec7082e1858247aba0
+user:ambarella-a5s:dbd648bcebc29ea9243438b79955ace3

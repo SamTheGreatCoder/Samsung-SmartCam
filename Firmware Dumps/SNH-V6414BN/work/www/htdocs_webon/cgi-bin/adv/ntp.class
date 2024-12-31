@@ -1,0 +1,91 @@
+<?php
+define('MAX_NTP', 5);
+
+class NTPConfiguration
+{
+	public 	$fromDHCP;
+	public 	$ntpFromDHCP;
+	public 	$ntpManual;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$unpackFormat;
+	public 	$payloadLength;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_NTP_SETTING, 'Action'=>$_action);
+		$this->dataInfo 	= array('FromDHCP'=> array('value'=>0, 'type'=>'c1'));
+		for ($index=0; $index<MAX_NTP; ++$index) {
+			$this->ntpFromDHCP[$index] = new NTPAddress();
+			$this->ntpManual[$index] 	= new NTPAddress();
+		}		
+		$this->unpackFormat 	= 	MakeDataFormat($this->dataInfo).
+										MakeUnpackFormat('ntpFromDHCP', GetDataInfoLength($this->ntpFromDHCP[0]->dataInfo), MAX_NTP).
+										MakeUnpackFormat('ntpManual', GetDataInfoLength($this->ntpManual[0]->dataInfo), MAX_NTP);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$manualIndex = 0;
+		$dynamicIndex = 0;
+		foreach($GLOBALS['XMLArray'] as $key=>$data) {
+			if ($key == 'Manual') {
+				foreach($data as $value) {
+					$this->ntpManual[$manualIndex]->dataInfo['Address']['value'] = $value;
+					$this->ntpManual[$manualIndex]->payload = MakePayload($this->ntpManual[$manualIndex]->dataInfo);
+					$manualIndex++;
+				}
+			}
+			else if ($key == 'Dynamic') {
+				foreach($data as $value) {
+					$this->ntpFromDHCP[$dynamicIndex]->dataInfo['Address']['value'] = $value;
+					$this->ntpFromDHCP[$dynamicIndex]->payload = MakePayload($this->ntpFromDHCP[$dynamicIndex]->dataInfo);
+					$dynamicIndex++;
+				}
+			}
+		}
+		for ($index=$manualIndex; $index<MAX_NTP; ++$index) $this->ntpManual[$index]->init_data();
+		for ($index=$dynamicIndex; $index<MAX_NTP; ++$index) $this->ntpFromDHCP[$index]->init_data();
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		for ($index=0; $index<MAX_NTP; ++$index) {
+			SetData($this->ntpFromDHCP[$index]->dataInfo, $this->ntpFromDHCP[$index]->payload, $dataArray['ntpFromDHCP'.$index]);
+			SetData($this->ntpManual[$index]->dataInfo, $this->ntpManual[$index]->payload, $dataArray['ntpManual'.$index]);
+		}
+		$this->dataInfo['FromDHCP']['value'] = $dataArray['FromDHCP'];
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->ntpFromDHCP, MAX_NTP).GetPayloads($this->ntpManual, MAX_NTP);
+	}
+}
+
+class NTPAddress
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Type' 	=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A40'),
+										'DNSName'=> array('value'=>'', 'type'=>'A40'));
+	}
+
+	function init_data()
+	{
+		$this->dataInfo = array(	'Type' 	=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A40'),
+										'DNSName'=> array('value'=>'', 'type'=>'A40'));
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+?>

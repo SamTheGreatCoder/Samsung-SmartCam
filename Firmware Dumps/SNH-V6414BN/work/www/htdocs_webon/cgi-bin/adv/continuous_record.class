@@ -1,0 +1,70 @@
+<?php
+require_once ('event_common.class');
+
+class ContinuousRecord
+{
+	public $headerInfo;
+	public $dataInfo;
+	public $payload;
+	public $schedule;
+	public $unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array(	'Command'=>CMD_CONTINUOUS_RECORDING, 'Action'=>$_action);
+		$this->dataInfo	 	= array(	'Normal'		=> array('value'=>'0', 'type'=>'c1', 'range'=>'0to2'),
+											'Event'		=> array('value'=>'0', 'type'=>'c1', 'range'=>'0to2'),
+											'Reserved' 	=> array('value'=>'', 'type'=>'A64', 'range'=>'none'));
+		$this->schedule = new EventSchedule();
+		$this->unpackFormat 	=	'c1Normal/c1Event/'.'A'.$this->schedule->payloadLength.'schedule/A64Reserved';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $key=>$data)
+		{
+			if ($key == 'Schedule')
+			{
+				$this->schedule->ParserXML($data);
+			}
+			else
+			{
+				$this->dataInfo[$key]['value'] = $data;
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		$this->dataInfo['Normal']['value'] = $dataArray['Normal'];
+		$this->dataInfo['Event']['value'] = $dataArray['Event'];
+		$this->schedule->UnpackData($dataArray['schedule']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = 	pack($this->dataInfo['Normal']['type'], $this->dataInfo['Normal']['value']).
+								pack($this->dataInfo['Event']['type'], $this->dataInfo['Event']['value']).
+								$this->schedule->payload.
+								pack($this->dataInfo['Reserved']['type'], $this->dataInfo['Reserved']['value']);
+
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+		$msg .= '<ContinuousRecord>';
+		$msg .= "\t".'<Normal>'.$this->dataInfo['Normal']['value'].'</Normal>'."\n";
+		$msg .= "\t".'<Event>'.$this->dataInfo['Event']['value'].'</Event>'."\n";
+		$msg .= $this->schedule->GetXMLData($_menu);
+		$msg .= '</ContinuousRecord>';
+
+		return $msg;
+
+	}
+}

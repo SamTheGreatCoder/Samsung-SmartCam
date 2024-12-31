@@ -1,0 +1,83 @@
+<?php
+define('MAX_SENSOR', 	4);
+require_once ('event_common.class');
+
+class SensorConfiguration
+{
+	public	$alarmNo;
+	public	$alarmInput;
+
+	public	$payload;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array('Command'=>CMD_SENSOR_CONFIGURATION, 'Action'=>$_action);
+		for ($index=0; $index<MAX_SENSOR; ++$index) {
+			$this->alarmInput[$index] = new AlarmInputConfiguration();
+		}
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat =	 MakeUnpackFormat('AlarmInput', $this->alarmInput[0]->payloadLength, MAX_SENSOR);
+		$dataArray = unpack($unpackFormat, $_payload);
+		for ($index=0; $index<MAX_SENSOR; ++$index) {
+			$this->alarmInput[$index]->UnpackData($dataArray['AlarmInput'.$index]);
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->alarmInput, MAX_SENSOR);
+	}
+}
+
+class AlarmInputConfiguration
+{
+	public	$schedule;
+	public	$action;
+
+	public	$dataInfo;
+	public	$unpackFormat;
+	public	$payloadLength;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Token' 	=> array('value'=>'','type'=>'A64'),
+										'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Type' 	=> array('value'=>0, 'type'=>'c1'));
+		$this->schedule 		= new EventSchedule();
+		$this->action			= new EventAction();
+		$this->payloadLength = 	GetDataInfoLength($this->dataInfo)+$this->schedule->payloadLength+$this->action->payloadLength;
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->dataInfo).'AlarmInfo'.'/'.
+										'A'.$this->schedule->payloadLength.'Schedule'.'/'.
+										'A'.$this->action->payloadLength.'Action';
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$dataArray = unpack($this->unpackFormat, $_dataArray);
+		SetData($this->dataInfo, $this->payload, $dataArray['AlarmInfo']);
+		$this->schedule->UnpackData($dataArray['Schedule']);
+		$this->action->UnpackData($dataArray['Action']);
+		$this->SetPayload();
+	}
+
+	function ParserXML($_xmlData)
+	{
+		foreach($_xmlData as $name=>$data) {
+			if ($name == 'No') continue;
+			if 		($name == 'Schedule')	$this->schedule->ParserXML($data);
+			else if 	($name == 'Action')	$this->action->ParserXML($data);
+			else 									$this->dataInfo[$name]['value'] = trim($data);
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).$this->schedule->payload.$this->action->payload;
+	}
+}
+?>

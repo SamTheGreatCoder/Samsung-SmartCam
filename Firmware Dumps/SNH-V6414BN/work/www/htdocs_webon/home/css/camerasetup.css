@@ -1,0 +1,60 @@
+tbody {
+	white-space: nowrap;
+}
+th {
+	white-space: nowrap;
+}
+td {
+	white-space: nowrap;
+}
+
+#CGILoading {filter:alpha(opacity=60); opacity:0.6; -moz-opacity:0.6;}
+
+table.blc_box {
+	width:145px;
+	height:100px;
+	margin:0 auto;
+	background-image: url("../images/common/btn/backlight_box.png"); 
+	background-repeat: no-repeat;
+	background-position:50% 50%;
+}
+
+table.blc_box tr td {
+	width:31px;
+	height:23px;
+	padding:0;
+	text-align:center;
+}
+
+#contents .data_write img {
+	height:20px;
+}
+
+.ui-tabs .ui-tabs-nav li 
+{
+  border: 0px;
+}
+
+.ui-tabs .ui-tabs-nav li a 
+{
+   background-color: #868fa3;
+   border: 1px solid #5e6472;
+   border-bottom-width: 0px;
+   color: #212121;
+}
+
+.ui-tabs .ui-tabs-nav .ui-tabs-active a
+{
+	background-color: #0087ef;
+	border: 1px solid #5e6472;
+	border-bottom-width: 0px;
+	color: #ffffff;
+	font-weight: bold; 
+}
+.ui-tabs .ui-tabs-panel
+{
+	border-bottom-right-radius:0px;
+	border-bottom-left-radius:0px;
+	border: 1px solid #5e6472;
+	padding: 0em 1.5em;
+}

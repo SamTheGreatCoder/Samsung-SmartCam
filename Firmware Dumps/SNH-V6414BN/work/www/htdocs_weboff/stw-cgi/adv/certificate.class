@@ -1,0 +1,149 @@
+<?php
+
+class Certificates
+{
+	public 	$count;
+	public 	$certificate;
+
+	public 	$payload;
+	public 	$headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_CERTIFICATE, 'Action'=>$_action);
+	}
+
+	function GetCertificateData($_payload, $_currtLength)
+	{
+		$format = 'i1count/';
+		if ($_currtLength != 4)
+		{
+			$format = "A".$_currtLength."/";
+		}
+		$format .= "A64id/i1dataLength/c*";
+
+		$dataArray = unpack($format, $_payload);
+
+		$cert = new Certificate();
+		$cert->dataInfo['Data']['type'] = 'A'.$dataArray['dataLength'];
+		return $cert;
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$payloadLength = 0;
+		$dataArray = unpack("i1count/c*", $_payload);
+		$this->count = $dataArray['count'];
+
+		$payloadLength += 4;  	// 'count' size(int)
+		for ($index=0; $index<$this->count; ++$index)
+		{
+			$this->certificate[$index] = new Certificate();
+			$this->certificate[$index] = GetCertificateData($_payload, $payloadLength);
+			$payloadLength += GetDataInfoLength($this->certificate[$index]->dataInfo);
+		}
+
+		$this->unpackFormat = "i1count/".MakeUnpackFormat('certificate', GetDataInfoLength($this->certificate[0]->dataInfo), $this->count);
+
+		$dataArray = unpack($this->unpackFormat, $_payload);
+
+		for ($index=0; $index<$this->count; ++$index)
+		{
+			SetData($this->certificate[$index]->dataInfo, $this->certificate[$index]->payload, $dataArray['certificate'.$index]);
+		}
+
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = pack("i1", $this->count).GetPayloads($this->certificate, $this->count);
+	}
+}
+
+class Certificate
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'ID' 			=> array('value'=>'', 'type'=>'A64'),
+										'DataLength'=> array('value'=>0, 'type'=>'i1'),
+										'Data' 		=> array('value'=>'', 'type'=>'A0'));
+	}
+}
+
+class CertificateStates
+{
+	public 	$count;
+	public 	$certState;
+
+	public 	$headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_CERTIFICATE, 'Action'=>$_action);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		$index = 0;
+		foreach ($xmlArray as $xmlData)
+		{
+			SetData($this->certState[$index]->dataInfo, $this->certState[$index]->payload, $xmlData);
+			$index++;
+		}
+		$this->headerInfo['Action'] = ACTION_SET;
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$payloadLength = 0;
+		$dataArray = unpack("i1count/c*", $_payload);
+		$this->count = $dataArray['count'];
+
+		for ($index=0; $index<$this->count; ++$index)
+		{
+			$this->certState[$index] = new CertificateState();
+		}
+		$this->unpackFormat = "i1count/".MakeUnpackFormat('certState', GetDataInfoLength($this->certState[0]->dataInfo), $this->count);
+
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		for ($index=0; $index<$this->count; ++$index)
+		{
+			SetData($this->certState[$index]->dataInfo, $this->certState[$index]->payload, $dataArray['certState'.$index]);
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = pack("i1", $this->count).GetPayloads($this->certificate, $this->count);
+	}
+}
+
+class CertificateState
+{
+	public	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_SET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_CERTIFICATE_STATE, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'ID'		=> array('value'=>'', 'type'=>'A64'),
+											'State'	=> array('value'=>0, 'type'=>'c1'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+?>

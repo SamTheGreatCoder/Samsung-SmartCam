@@ -1,0 +1,66 @@
+#!/bin/sh
+#description: startup script for zero configuration daemon
+#processname: mDNSResponderPosix
+. /etc/bonjour/bonjourcfg
+
+set -e
+NAME='Bonjour Service'
+BONJOURD=/usr/sbin/mDNSResponderPosix
+ARGS='-b -f /etc/bonjour/Services.txt'
+#ARGS='-f /etc/bonjour/Services.txt'
+#To debug, run this process in foreground
+PID_FILE=/var/run/mDNSResponder.pid
+EXE_NAME=bonjourd
+
+test -f $BONJOURD || exit 0
+
+case "$1" in
+    start)
+        if [ "$ENABLE_BONJOUR" = yes ]; then
+            echo -e "Starting $NAME"
+            start-stop-daemon -b -q -S --pidfile $PID_FILE -x $BONJOURD -- $ARGS
+            echo -e "$NAME is now running"
+        else
+            echo -e "$NAME is Disabled"
+        fi
+        ;;
+    stop)
+        echo -e "Stopping $NAME"
+        if [ -f "$PID_FILE" ]; then
+            _pid=$(cat $PID_FILE 2>/dev/null)
+            if [ "$_pid" ]; then
+                kill -INT $_pid
+            else
+                echo -e "$NAME is not running. Stop failed"
+            fi
+            rm -f $PID_FILE
+        else
+            echo -e "$NAME is not running. Stop failed"
+        fi
+        ;;
+    restart|reload|force-reload)
+        echo -e "Reloading $NAME"
+        IS_STARTED="FALSE";
+        if [ -f "$PID_FILE" ]; then
+            _pid=$(cat $PID_FILE 2>/dev/null)
+            if [ "$_pid" -a "$(ps -x | grep -v grep | grep $_pid)" ]; then
+                IS_STARTED="TRUE"
+            fi
+        fi
+
+        if [ "$IS_STARTED" = "TRUE" ]; then
+            kill -HUP $_pid
+            echo -e "$NAME is now restarted"
+        else
+            echo -e "$NAME is not running. Stopping is not required"
+            echo -e "Starting $NAME"
+            start-stop-daemon -b -q -S --pidfile $PID_FILE -x $BONJOURD -- $ARGS
+            echo -e "$NAME is now running"
+        fi
+        ;;
+    *)
+        echo -e "Usage: /etc/ini.d/$EXE_NAME {start|stop|restart|reload|force-reload}"
+        exit 1
+        ;;
+esac
+exit 0

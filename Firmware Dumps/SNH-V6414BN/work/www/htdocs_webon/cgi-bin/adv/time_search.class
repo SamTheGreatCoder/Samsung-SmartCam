@@ -1,0 +1,84 @@
+<?php
+class TimeSearchRequest
+{
+	public 	$timeSearchResults;
+	public 	$timeSearchDetail;
+
+	public	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct()
+	{
+		$this->headerInfo 	= array(	'Command'=>CMD_TIME_SEARCH, 'Action'=>ACTION_START);
+		$this->dataInfo 	= array(	'Year'	=> array('value'=>0, 	'type'=>'i1'),
+											'Month'	=> array('value'=>0, 	'type'=>'i1'),
+											'Day'		=> array('value'=>0, 	'type'=>'i1'));
+	}
+
+	function PayloadToArray($_payload)
+	{
+		if ($this->headerInfo['Command'] == CMD_TIME_SEARCH) {
+			$this->timeSearchResults = unpack("c*", $_payload);
+		}
+		else {
+			$this->timeSearchDetail = new TimeSearchDetail();
+			$this->timeSearchDetail->UnpackData($_payload);
+		}
+	}
+}
+
+class TimeSearchDetail
+{
+	public	$resultCount;
+	public 	$results;
+
+	function __construct() {}
+
+	function UnpackData($_payload)
+	{
+		$dataArray = unpack('i1ResultCount', $_payload);
+		$this->resultCount = $dataArray['ResultCount'];
+
+		$unpackFormat = 'i1ResultCount/';
+		for ($index=0; $index<$this->resultCount; ++$index)
+		{
+			$this->results[$index] = new TimeSearchDeatilResult();
+			$unpackFormat .= 'A50results'.$index."/";
+		}
+
+		$dataArray = unpack($unpackFormat, $_payload);
+		for ($index=0; $index<$this->resultCount; ++$index)
+		{
+			$this->results[$index]->UnpackData($dataArray['results'.$index]);
+		}
+	}
+}
+
+class TimeSearchDeatilResult
+{
+	public	$eventType;
+	public	$duplicate;
+	public 	$startTime;
+	public 	$endTime;
+
+	function __construct() {}
+
+	function UnpackData($_dataArray)
+	{
+		$_dataArray = unpack("i6startTime/i6endTime/c1eventType/c1duplicate", $_dataArray);
+		$this->eventType 	= $_dataArray['eventType'];
+		$this->duplicate	= $_dataArray['duplicate'];
+
+		$hour = ($_dataArray['startTime4'] < 10 ? '0'.$_dataArray['startTime4'] : $_dataArray['startTime4']);
+		$min = ($_dataArray['startTime5'] < 10 ? '0'.$_dataArray['startTime5'] : $_dataArray['startTime5']);
+		$sec = ($_dataArray['startTime6'] < 10 ? '0'.$_dataArray['startTime6'] : $_dataArray['startTime6']);
+		$this->startTime = $hour.':'.$min.':'.$sec;
+
+		$hour = ($_dataArray['endTime4'] < 10 ? '0'.$_dataArray['endTime4'] : $_dataArray['endTime4']);
+		$min = ($_dataArray['endTime5'] < 10 ? '0'.$_dataArray['endTime5'] : $_dataArray['endTime5']);
+		$sec = ($_dataArray['endTime6'] < 10 ? '0'.$_dataArray['endTime6'] : $_dataArray['endTime6']);
+		$this->endTime = $hour.':'.$min.':'.$sec;
+	}
+}
+?>

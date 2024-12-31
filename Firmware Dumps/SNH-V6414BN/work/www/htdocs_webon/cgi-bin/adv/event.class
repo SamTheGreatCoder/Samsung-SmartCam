@@ -1,0 +1,74 @@
+<?php
+define('MAX_EVENT',		13);
+
+class EventConfiguration
+{
+	public	$event;
+	public	$payload;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array('Command'=>CMD_EVENT_CONFIGURATION, 'Action'=>$_action);
+		for ($index=0; $index<MAX_EVENT; ++$index)
+			$this->event[$index] = new Event();
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$event_list = array('Sensor0'=>0, 'Sensor1'=>1, 'Sensor2'=>2, 'Sensor3'=>3, 'MD'=>4, 'VA'=>5, 'TimeSchedule'=>6, 'NetworkDisconnect'=>7, 'FD'=>8, 'Tampering'=>9, 'AD'=>10, 'Tracking'=>11, 'OpenSDK'=>12);
+		foreach($GLOBALS['XMLArray'] as $eventData) {
+			if (array_key_exists($eventData->GetName(), $event_list)) {
+				$index = $event_list[$eventData->GetName()];
+				SetData($this->event[$index]->dataInfo, $this->event[$index]->payload, $eventData);
+				if ($eventData->GetName() == 'MD') {
+					$index = $event_list['VA'];
+					SetData($this->event[$index]->dataInfo, $this->event[$index]->payload, $eventData);	
+				}
+				else if ($eventData->GetName() == 'VA') {
+					$index = $event_list['MD'];
+					SetData($this->event[$index]->dataInfo, $this->event[$index]->payload, $eventData);	
+				}
+			}
+			else {
+				ResponseText(FALSE);
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat = MakeUnpackFormat('EventConfiguration', GetDataInfoLength($this->event[0]->dataInfo), MAX_EVENT);
+		$dataArray = unpack($unpackFormat, $_payload);
+		for ($index=0; $index<MAX_EVENT; ++$index)
+			SetData($this->event[$index]->dataInfo, $this->event[$index]->payload, $dataArray['EventConfiguration'.$index]);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->event, MAX_EVENT);
+	}
+}
+
+class Event
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+			$this->dataInfo	 = array(	'Enabled'		=> array('value'=>0, 'type'=>'c1'),
+									'RelayOutput0'	=> array('value'=>0, 'type'=>'c1'),
+									'RelayOutput1'	=> array('value'=>0, 'type'=>'c1'),
+									'RelayOutput2'	=> array('value'=>0, 'type'=>'c1'),
+									'RelayOutput3'	=> array('value'=>0, 'type'=>'c1'),
+									'FTPSending' 	=> array('value'=>0, 'type'=>'c1'),
+									'SMTPSending' 	=> array('value'=>0, 'type'=>'c1'),
+									'Record' 		=> array('value'=>0, 'type'=>'c1'),
+									'GotoPreset'	=> array('value'=>0, 'type'=>'i1'),
+									'SMSSending'	=> array('value'=>0, 'type'=>'c1'), // DEV_S1SMS
+									'Reserved' 		=> array('value'=>0, 'type'=>'A7'));
+	}
+}
+?>

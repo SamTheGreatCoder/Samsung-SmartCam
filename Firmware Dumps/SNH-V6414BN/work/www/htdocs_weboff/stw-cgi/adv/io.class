@@ -1,0 +1,334 @@
+<?php
+require_once ('event_common.class');
+
+define('MAX_SENSOR',							4);
+define('MAX_RELAY', 							4);
+define('MAX_RELAY_OUTPUTS',				1);
+
+class IoConfiguration
+{
+	public	$sensor;
+	public	$relayOutput;
+	public 	$timer;
+	public 	$alarmNo = -1;
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+	public	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		for ($index=0; $index<MAX_SENSOR; ++$index)
+		{
+			$this->sensor[$index] = new Sensor();
+		}
+		for ($index=0; $index<MAX_RELAY_OUTPUTS; ++$index)
+		{
+			$this->relayOutput[$index] = new RelayOutput();
+		}
+		$this->timer				= new TimeScheduleConfiguration();
+		$this->headerInfo		= array('Command'=>CMD_IO_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo			= array('Reserved' => array('value'=>'', 'type'=>'A48'));
+		$this->unpackFormat	= 	MakeUnpackFormat('sensor', $this->sensor[0]->payloadLength, MAX_SENSOR).
+										MakeUnpackFormat('relayOutput', GetDataInfoLength($this->relayOutput[0]->dataInfo), MAX_RELAY_OUTPUTS).
+										'A'.$this->timer->payloadLength.'timer/'.MakeDataFormat($this->dataInfo);
+		$this->SetAlarmNo();
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $iodata)
+		{
+			if ($_menu == 'AlarmInput')
+			{
+				$no = $this->GetAlarmNo($iodata);
+				$this->sensor[$no]->ParserXML($iodata);
+			}
+			else if ($_menu == 'RelayOutput')
+			{
+				SetData($this->relayOutput[0]->dataInfo, $this->relayOutput[0]->payload, $iodata);
+			}
+			else if ($_menu == 'TimeSchedule')
+			{
+				$this->timer->ParserXML($iodata);
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+
+		for ($index=0; $index<MAX_SENSOR; ++$index)
+		{
+			$this->sensor[$index]->UnpackData($dataArray['sensor'.$index]);
+		}
+		for ($index=0; $index<MAX_RELAY_OUTPUTS; ++$index)
+		{
+			SetData($this->relayOutput[$index]->dataInfo, $this->relayOutput[$index]->payload, $dataArray['relayOutput'.$index]);
+		}
+		$this->timer->UnpackData($dataArray['timer']);
+		SetData($this->dataInfo, $this->payload, $dataArray['Reserved']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->sensor, MAX_SENSOR).GetPayloads($this->relayOutput, MAX_RELAY_OUTPUTS).$this->timer->payload.MakePayload($this->dataInfo);
+	}
+
+	function GetXMLData($_menu)
+	{
+		if ($_menu == 'AlarmInput')
+		{
+			return $this->sensor[$this->alarmNo]->GetXMLData($_menu);
+		}
+		else if ($_menu == 'TimeSchedule')
+		{
+			return $this->timer->GetXMLData($_menu);
+		}
+	}
+
+	function GetAlarmNo($_iodata)
+	{
+		foreach($_iodata as $name=>$value) {
+			if ($name== 'No') {
+				$this->alarmNo = (int)$value - 1;
+				break;
+			}
+		}
+
+		return $this->alarmNo;
+	}
+
+	function SetAlarmNo()
+	{
+		if (is_object($GLOBALS['XMLArray']) != 1)	return;
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $name=>$value)
+		{
+			if ($name == 'No')
+			{
+				$this->alarmNo = (int)$value - 1;
+				break;
+			}
+		}
+	}
+}
+
+class Sensor
+{
+	public 	$eventSchedule;
+	public	$eventAction;
+	public	$dataInfo;
+	public 	$payload = '';
+	public	$dataFormat;
+	public 	$unpackFormat;
+	public 	$payloadLength;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Token' 	=> array('value'=>'','type'=>'A64'),
+										'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Type' 	=> array('value'=>0, 'type'=>'c1'));
+		$this->eventSchedule	= new EventSchedule();
+		$this->eventAction	= new EventAction();
+		$this->dataFormat		= MakeDataFormat($this->dataInfo);
+		$this->payloadLength = GetDataInfoLength($this->dataInfo)+$this->eventSchedule->payloadLength+$this->eventAction->payloadLength+4;
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->dataInfo).'sensorInfo/'.
+										'A'.$this->eventSchedule->payloadLength.'eventSchedule/'.
+										'A'.$this->eventAction->payloadLength.'eventAction/'.
+										'A4Reserved';
+	}
+
+	function ParserXML($_xmlMsg)
+	{
+		foreach($_xmlMsg as $name=>$value)
+		{
+			if ($name == 'No') continue;
+			if ($name== 'Schedule')		$this->eventSchedule->ParserXML($value);
+			else if ($name== 'Action')	$this->eventAction->ParserXML($value);
+			else 								$this->dataInfo[$name]['value'] = trim($value);
+		}
+		$this->SetPayload();
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$dataArray = unpack($this->unpackFormat, $_dataArray);
+
+		SetData($this->dataInfo, $this->payload, $dataArray['sensorInfo']);
+		$this->eventSchedule->UnpackData($dataArray['eventSchedule']);
+		$this->eventAction->UnpackData($dataArray['eventAction']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).$this->eventSchedule->payload.$this->eventAction->payload.pack("a4", "");
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = "\t".'<AlarmInput>'."\r\n";
+		$msg .= "\t\t".'<Enabled>'.$this->dataInfo['Enabled']['value'].'</Enabled>'."\r\n";
+		$msg .= "\t\t".'<Type>'.$this->dataInfo['Type']['value'].'</Type>'."\r\n";
+		$msg .= $this->eventSchedule->GetXMLData($_menu);
+		$msg .= $this->eventAction->GetXMLData($_menu);
+		$msg .= "\t".'</AlarmInput>'."\r\n";
+		return $msg;
+	}
+}
+
+class RelayOutput
+{
+	public 	$payload;
+	public	$dataInfo;
+	function __construct()
+	{
+		$this->dataInfo	 = array(	'Token' 		=> array('value'=>'', 'type'=>'A64'),
+										'Mode' 		=> array('value'=>0, 'type'=>'c1'),
+										'DelayTime'	=> array('value'=>0, 'type'=>'i1'),
+										'IdleState' => array('value'=>0, 'type'=>'c1'));
+	}
+}
+
+class TimeScheduleConfiguration
+{
+	public 	$eventSchedule;
+	public 	$eventAction;
+	public	$dataInfo;
+	public 	$paylaod;
+	public 	$unpackFormat;
+	public 	$payloadLength;
+
+	function __construct()
+	{
+		$this->dataInfo 		= array(	'Token' 		=> array('value'=>'', 'type'=>'A64'),
+												'Enabled' 	=> array('value'=>0, 'type'=>'c1'),
+												'Interval' 	=> array('value'=>600, 'type'=>'i1'));
+		$this->eventSchedule	= new EventSchedule();
+		$this->eventAction	 	= new EventAction();
+		$this->payloadLength	= GetDataInfoLength($this->dataInfo)+$this->eventSchedule->payloadLength+$this->eventAction->payloadLength+4;
+		$this->unpackFormat 	= 	$this->dataInfo['Token']['type'].'Token/'.
+										$this->dataInfo['Enabled']['type'].'Enabled/'.
+										'A'.$this->eventSchedule->payloadLength.'eventSchedule/'.
+										$this->dataInfo['Interval']['type'].'Interval/'.
+										'A'.$this->eventAction->payloadLength.'eventAction/'.
+										'A4Reserved';
+	}
+
+	function ParserXML($_xmlData)
+	{
+		foreach($_xmlData as $name=>$data)
+		{
+			if ($name== 'Schedule')		$this->eventSchedule->ParserXML($data);
+			else if ($name== 'Action')	$this->eventAction->ParserXML($data);
+			else								$this->dataInfo[$name]['value'] = $data;
+		}
+		$this->SetPayload();
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$dataArray = unpack($this->unpackFormat, $_dataArray);
+		$this->dataInfo['Token']['value'] = $dataArray['Token'];
+		$this->dataInfo['Enabled']['value'] = $dataArray['Enabled'];
+		$this->dataInfo['Interval']['value'] = $dataArray['Interval'];
+		$this->eventSchedule->UnpackData($dataArray['eventSchedule']);
+		$this->eventAction->UnpackData($dataArray['eventAction']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload =	pack($this->dataInfo['Token']['type'], $this->dataInfo['Token']['value']).
+								pack($this->dataInfo['Enabled']['type'], $this->dataInfo['Enabled']['value']).
+								$this->eventSchedule->payload.
+								pack($this->dataInfo['Interval']['type'], $this->dataInfo['Interval']['value']).
+								$this->eventAction->payload.
+								pack("a4", "");
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = "\t".'<TimeSchedule>'."\r\n";
+		$msg .= "\t\t".'<Enabled>'.$this->dataInfo['Enabled']['value'].'</Enabled>'."\r\n";
+		$msg .= "\t\t".'<Interval>'.$this->dataInfo['Interval']['value'].'</Interval>'."\r\n";
+		$msg .= $this->eventSchedule->GetXMLData($_menu);
+		$msg .= $this->eventAction->GetXMLData($_menu);
+		$msg .= "\t".'</TimeSchedule>'."\r\n";
+		return $msg;
+	}
+}
+
+class NetworkEventConfiguration
+{
+	public 	$eventSchedule;
+	public 	$eventAction;
+	public 	$payload;
+	public	$dataInfo;
+	public 	$headerInfo;
+	public 	$unpackFormat;
+	public 	$payloadLength;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 		= array( 'Command'		=> CMD_NETWORK_EVENT, 'Action'=>$_action);
+		$this->dataInfo 		= array(	'Enabled' 	=> array('value'=>0, 'type'=>'c1'),
+												'Reserved' 	=> array('value'=>'', 'type'=>'A132'));
+		$this->eventSchedule	= new EventSchedule();
+		$this->eventAction	 	= new EventAction();
+		$this->payloadLength	= GetDataInfoLength($this->dataInfo)+$this->eventSchedule->payloadLength+$this->eventAction->payloadLength;
+		$this->unpackFormat 	= 	$this->dataInfo['Enabled']['type']."Enabled"."/".
+										"A".$this->eventSchedule->payloadLength."eventSchedule"."/".
+										"A".$this->eventAction->payloadLength."eventAction"."/".
+										$this->dataInfo['Reserved']['type']."Reserved";
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+		foreach($xmlArray as $name=>$data)
+		{
+			if ($name == 'Schedule')			$this->eventSchedule->ParserXML($data);
+			else if ($name == 'Action')		$this->eventAction->ParserXML($data);
+			else									$this->dataInfo[$name]['value'] = $data;
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		$this->dataInfo['Enabled']['value'] = $dataArray['Enabled'];
+		$this->dataInfo['Reserved']['value'] = $dataArray['Reserved'];
+		$this->eventSchedule->UnpackData($dataArray['eventSchedule']);
+		$this->eventAction->UnpackData($dataArray['eventAction']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload =	pack($this->dataInfo['Enabled']['type'], $this->dataInfo['Enabled']['value']).
+								$this->eventSchedule->payload.
+								$this->eventAction->payload.
+								pack($this->dataInfo['Reserved']['type'], $this->dataInfo['Reserved']['value']);
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = '<NetworkEvent>'."\r\n";
+		$msg .= "\t".'<Enabled>'.$this->dataInfo['Enabled']['value'].'</Enabled>'."\r\n";
+		$msg .= $this->eventSchedule->GetXMLData($_menu);
+		$msg .= $this->eventAction->GetXMLData($_menu);
+		$msg .= '</NetworkEvent>'."\r\n";
+		return $msg;
+	}
+}
+
+?>

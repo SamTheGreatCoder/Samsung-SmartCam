@@ -1,0 +1,41 @@
+<?php
+class FactoryDefaultConfiguration
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_SET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_FACTORY_DEFAULT, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Type' 	=> array('value'=>0, 'type'=>'c1'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+
+class RebootConfiguration
+{
+	public 	$dataInfo;
+	public  	$headerInfo;
+
+	function __construct($_action=ACTION_SET)
+	{
+		$this->headerInfo = array('Command'=>CMD_REBOOT, 'Action'=>$_action);
+		$this->dataInfo 	= array('Message' 	=> array('value'=>'', 'type'=>'A128'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+?>

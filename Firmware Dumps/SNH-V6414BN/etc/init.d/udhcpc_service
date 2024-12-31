@@ -1,0 +1,96 @@
+#!/bin/sh
+
+# callsyntax: $0 $1=INTERFACE $2=OP
+
+INTERFACE=$1
+OP=$2
+SERVICE_NAME="udhcpc_service"
+SERVICE_PATH="/tmp/$SERVICE_NAME"
+LOG_PREFIX="$SERVICE_NAME($INTERFACE):"
+NOTIFY_PATH="$SERVICE_PATH/$INTERFACE"
+ACTION_PATH="$SERVICE_PATH/udhcpc_action.sh"
+EXEC="udhcpc -- -i $INTERFACE -t 10 -T 10 -a -s $ACTION_PATH -S"
+
+if [ ! -d $SERVICE_PATH ]; then
+    mkdir $SERVICE_PATH
+fi
+
+if [ ! -x $ACTION_PATH ]; then
+    cp -f /etc/udhcpc/udhcpc_action.sh $SERVICE_PATH
+fi
+
+start() {
+    touch $SERVICE_PATH/running
+    start-stop-daemon -S -q -x $EXEC
+    case $? in
+        0)
+            [ -f $SERVICE_PATH/running ] && echo -e "\033[32m$LOG_PREFIX started\033[0m"
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            network_notifier $NOTIFY_PATH "failed"
+            ;;
+    esac
+}
+
+stop() {
+    rm $SERVICE_PATH/running
+    if [ "$(ifconfig | grep $INTERFACE)" != "" ]; then
+        start-stop-daemon -K -q -s USR2 -x $EXEC
+        case $? in
+            0)
+                sleep 1
+                echo -e "\033[32m$LOG_PREFIX released\033[0m"
+                ifconfig $INTERFACE
+                ;;
+            *)
+                ;;
+        esac
+    fi
+
+    start-stop-daemon -K -q -x $EXEC
+    case $? in
+        0)
+            echo -e "\033[32m$LOG_PREFIX stopped\033[0m"
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            ;;
+    esac
+    #ps 
+    sleep 5
+    #ps
+    network_notifier $NOTIFY_PATH "stopped"
+
+}
+
+status() {
+    start-stop-daemon -K -t -q -x $EXEC
+    case $? in
+        0)
+            echo -e "\033[33m$LOG_PREFIX running\033[0m"
+            network_notifier $NOTIFY_PATH "started"
+            ;;
+        *)
+            echo -e "\033[33m$LOG_PREFIX not running($?)\033[0m"
+            network_notifier $NOTIFY_PATH "failed"
+            ;;
+    esac
+}
+
+if [ -z $INTERFACE ]; then
+    echo -e "Usage: $0 interface [start|stop|status]"
+    exit 1
+fi
+
+case $OP in
+    start|stop|status)
+        $OP
+        ;;
+    *)
+        echo -e "Usage: $0 interface [start|stop|status]"
+        exit 1
+        ;;
+esac
+
+exit $?

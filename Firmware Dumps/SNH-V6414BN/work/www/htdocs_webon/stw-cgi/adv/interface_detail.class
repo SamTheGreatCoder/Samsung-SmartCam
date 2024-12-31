@@ -1,0 +1,61 @@
+<?php
+
+define('MAX_AUTO_IPV6_ADDR', 2);
+
+class InterfaceDetailConfiguration
+{
+    public $autoIPv6Addr;
+    
+    public $headerInfo;
+    public $payload;
+    public $dataInfo;
+    public $unpackFormat;
+
+    function __construct($_action=ACTION_GET)
+    {
+        $this->headerInfo	= array('Command'=>CMD_NETWORK_INTERFACE_DETAIL, 'Action'=>$_action);
+        $this->dataInfo = array('IPv6RouterAdvertisement' => array('value' => 0, 'type' => 'c1'),
+            'InterfaceType' => array('value' => '', 'type' => 'A64'),
+            'BroadCastIPv4Addr' => array('value' => '', 'type' => 'A16'),
+            'BroadCastIPv6Addr' => array('value' => '', 'type' => 'A40'),
+            'DomainName' => array('value' => '', 'type' => 'A40'));
+        
+        for($index = 0 ; $index < MAX_AUTO_IPV6_ADDR ; ++$index)
+        {
+            $this->autoIPv6Addr[$index] = new AutoIPv6Addr();
+        }
+        
+        $this->unpackFormat = MakeUnpackFormat('dataInfo', GetDataInfoLength($this->dataInfo), 1) .
+                              MakeUnpackFormat('autoIPv6Addr', GetDataInfoLength($this->autoIPv6Addr[0]->dataInfo), MAX_AUTO_IPV6_ADDR);
+    }
+
+    function PayloadToArray($_payload)
+	{
+        $dataArray = unpack($this->unpackFormat, $_payload);
+        SetData($this->dataInfo, $this->payload, $dataArray['dataInfo0']);
+        
+        for ($index = 0; $index < MAX_AUTO_IPV6_ADDR; ++$index)
+        {
+            SetData($this->autoIPv6Addr[$index]->dataInfo, $this->autoIPv6Addr[$index]->payload, $dataArray['autoIPv6Addr' . $index]);
+        }
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->autoIPv6Addr, MAX_AUTO_IPV6_ADDR);
+	}
+}
+
+class AutoIPv6Addr
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Address'=> array('value'=>'', 'type'=>'A40'),
+										'Prefix'	=> array('value'=>128, 'type'=>'i1'));
+	}
+}
+
+?>

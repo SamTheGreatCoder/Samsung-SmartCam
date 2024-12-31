@@ -1,0 +1,66 @@
+#!/bin/sh
+
+check_pid="$(ps x | grep NetworkManager | awk '/usr/ {print $1}')"
+kill $check_pid
+
+echo "Ambas2l Board setting"
+amba_debug -w 0xe8010018 -d 0x2d800
+amba_debug -w 0xe8010004 -d 0x774  
+amba_debug -w 0xe8010028 -d 0x64   
+amba_debug -w 0xe8010000 -d 0x64   
+amba_debug -r 0xe8010000;        
+#echo 36 > /sys/class/gpio/export
+#echo out > /sys/class/gpio/gpio36/direction
+
+echo "Remove Core Dump"
+rm /var/lib/systemd/coredump/core*
+rm /var/lib/systemd/coredump/.core*
+
+#system ctrl stop
+systemctl stop systemd-tmpfiles-clean.timer
+systemctl stop telnet.socket    
+
+/work/app/env-app | grep bootargs > /tmp/cmdline
+/work/app/hwmacchanger
+
+
+if [ ! -d /mnt/mmcblk0p1 ] ; then
+  mkdir -p /mnt/mmcblk0          
+  mkdir -p /mnt/mmcblk0p1        
+fi                               
+
+echo "setting up environment variables"
+export XMPP_DOMAIN="xmpp.samsungsmartcam.com"
+export XMPP_SERVER="xmpp.samsungsmartcam.com"
+export APNSVRADDR="http://www.samsungsmartcam.com/web/event.stw"
+
+CHECK_CASE_STATUS="$(ethtool eth0 2> /dev/null | grep -e 'Not reported')"
+
+if [ "$CHECK_CASE_STATUS" != "" ]; then
+    echo -e "\033[33mHousing Type : SNH-V6430BN_INDOOR\033[0m"
+else
+    echo -e "\033[33mHousing Type : SNH-V6430BN_OUTDOOR\033[0m"
+    touch /tmp/chkoutdoor
+fi
+
+
+cd /work/app
+./system_exec &          
+./mainServer &  
+
+echo "Ambarella mainServer Start!"
+
+if [ -e /dev/mmcblk0p1 ]
+then
+echo "Ambarella SD card exist!!"
+else
+echo "Ambarella SD card not exist!!"
+echo 102 > /sys/class/gpio/export;
+echo out > /sys/class/gpio/gpio102/direction;
+echo 0 > /sys/class/gpio/gpio102/value;
+sleep 3
+echo 1 > /sys/class/gpio/gpio102/value;
+sleep 3
+echo 1 > /sys/kernel/debug/mmc0/ambhost/fixed_cd
+echo "setting for SD CARD!"
+fi

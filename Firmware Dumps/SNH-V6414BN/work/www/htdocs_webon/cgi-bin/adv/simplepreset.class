@@ -1,0 +1,59 @@
+<?php
+
+class PresetList
+{
+	public	$preset;
+	
+	public	$payload;
+	public	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_PTZ_SIMPLE_PRESET, 'Action'=>$_action);
+		$this->preset = new PTZPresetData();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat = MakeUnpackFormat('presetList', GetDataInfoLength($this->preset->dataInfo), $GLOBALS['M_PRESET_COUNT']+1);
+		$dataArray = unpack($unpackFormat, $_payload);		
+
+		$this->preset = array();
+		for ($index=0; $index<=$GLOBALS['M_PRESET_COUNT']; ++$index) {
+			$this->preset[$index] = new PTZPresetData();
+			SetData($this->preset[$index]->dataInfo, $this->preset[$index]->payload, $dataArray['presetList'.$index]);
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach($GLOBALS['XMLArray'] as $name=>$value) {	
+			$index = (int)substr($name, strlen('PresetList'));
+			SetData($this->preset[$index]->dataInfo, $this->preset[$index]->payload, $value);
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->preset, $GLOBALS['M_PRESET_COUNT']+1);
+	}
+}
+
+class PTZPresetData
+{ 
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo 	= array(	'Index'		=>	array('value'=>0, 'type'=>'i1'),
+											'Enabled'	=>	array('value'=>0, 'type'=>'c1'),
+											'Name'		=>	array('value'=>'', 'type'=>'A16'),
+											'AfterAction' => array('value'=>0, 'type'=>'c1'),
+											'TrackingTime' => array('value'=>0, 'type'=>'i1'));
+	}
+}
+
+?>

@@ -1,0 +1,80 @@
+#!/bin/sh
+
+# callsyntax: $0 $1=IFNAME $2=CTRL_PATH $3=OP
+
+IFNAME=$1
+CTRL_PATH=$2
+OP=$3
+SERVICE_NAME="hostapd_cli"
+SERVICE_PATH="/tmp/hostapd/$SERVICE_NAME"
+LOG_PREFIX="$SERVICE_NAME($IFNAME):"
+NOTIFY_PATH="$SERVICE_PATH/$IFNAME"
+ACTION_PATH="$SERVICE_PATH/hostapd_action.sh"
+CLI_EXEC="hostapd_cli -- -p $CTRL_PATH -i $IFNAME -a $ACTION_PATH -B"
+
+if [ ! -d $SERVICE_PATH ]; then
+    mkdir $SERVICE_PATH
+fi
+
+if [ ! -x $ACTION_PATH ]; then
+    cp -f /etc/hostapd/hostapd_action.sh "$SERVICE_PATH"
+fi
+
+start() {
+    echo -e "\033[32m$LOG_PREFIX starting($CLI_EXEC)\033[0m"
+    start-stop-daemon -S -x $CLI_EXEC
+    case $? in
+        0)
+            network_notifier $NOTIFY_PATH "started"
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            network_notifier $NOTIFY_PATH "failed"
+            ;;
+    esac
+}
+
+stop() {
+    echo -e "\033[32m$LOG_PREFIX stopping($CLI_EXEC)\033[0m"
+    start-stop-daemon -K -q -x $CLI_EXEC
+    case $? in
+        0 | 1)
+            sleep 2
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            ;;
+    esac
+    network_notifier $NOTIFY_PATH "stopped"
+}
+
+status() {
+    HOSTAPD_STATE="$(hostapd_cli -p $CTRL_PATH status 2>/dev/null | grep "hostapd_state=" | cut -d "=" -f 2)"
+    case $HOSTAPD_STATE in
+        COMPLETED)
+            echo -e "\033[33m$LOG_PREFIX running\033[0m"
+            network_notifier $NOTIFY_PATH "started"
+            ;;
+        *)
+            echo -e "\033[33m$LOG_PREFIX not running($?)\033[0m"
+            network_notifier $NOTIFY_PATH "failed"
+            ;;
+    esac
+}
+
+if [ -z $IFNAME ]; then
+    echo -e "Usage: $0 ifname <path to ctrl sockets> [start|stop|status]"
+    exit 1
+fi
+
+case $OP in
+    start|stop|status)
+        $OP
+        ;;
+    *)
+        echo -e "Usage: $0 ifname <path to ctrl sockets> [start|stop|status]"
+        exit 1
+        ;;
+esac
+
+exit $?

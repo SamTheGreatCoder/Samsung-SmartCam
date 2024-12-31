@@ -1,0 +1,188 @@
+<?php
+class MediaConfiguration
+{
+	public 	$videoInput;
+	public 	$videoOutput;
+	public 	$audioInput;
+	public 	$audioOutput;
+	public	$audioDetail;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 		= array('Command'=>CMD_MEDIA_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo 		= array('VideoType'=> array('value'=>0, 'type'=>'c1'),
+											  'AutoFlipEnable'=> array('value'=>0, 'type'=>'c1', 'visible'=>TRUE),
+											  'Rotate'=> array('value'=>0, 'type'=>'c1', 'visible'=>TRUE),
+											  'Reserved' => array('value'=>'', 'type'=>'A112'));
+		$this->videoInput  	= new VideoInput();
+		$this->videoOutput 	= new VideoOutput();
+		$this->audioInput 		= new AudioInput();
+		$this->audioOutput 	= new AudioOutput();
+		$this->audioDetail		= new AudioDetail();
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->videoInput->dataInfo).'videoInput/'.
+										'A'.GetDataInfoLength($this->videoOutput->dataInfo).'videoOutput/'.
+										'A'.GetDataInfoLength($this->audioInput->dataInfo).'audioInput/'.
+										'A'.GetDataInfoLength($this->audioOutput->dataInfo).'audioOutput/'.
+										'c1VideoType/'.
+										'A'.GetDataInfoLength($this->audioDetail->dataInfo).'audioDetail/'.
+										'c1AutoFlipEnable/'.
+										'i1AudioOutputUnitSize/'.
+										'c1Rotate/'.
+										'A108Reserved';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+		if ($_menu == 'Audio')
+		{
+			foreach ($xmlArray as $name=>$data)
+			{
+				if ($name == 'AudioInput')
+				{
+					SetData($this->audioInput->dataInfo, $this->audioInput->payload, $data);
+				}
+				else if ($name == 'AudioOutput')
+				{
+					SetData($this->audioOutput->dataInfo, $this->audioOutput->payload, $data);
+				}
+				else if ($name == 'AudioDetail')
+				{
+					SetData($this->audioDetail->dataInfo, $this->audioDetail->payload, $data);
+				}
+			}
+		}
+		else if ($_menu == 'VideoInput')
+		{
+			SetData($this->videoInput->dataInfo, $this->videoInput->payload, $xmlArray);
+		}
+		else if ($_menu == 'VideoOutput')
+		{
+			foreach ($xmlArray as $name=>$data)
+			{
+				if ($name == 'Enabled')
+				{
+					$this->videoOutput->dataInfo['Enabled']['value'] = $data;
+					$this->videoOutput->payload = MakePayload($this->videoOutput->dataInfo);
+				}
+				else if ($name == 'VideoType')
+				{
+					$this->dataInfo['VideoType']['value'] = $data;
+				}
+				else if ($name == 'AutoFlipEnable')
+				{
+					$this->dataInfo['AutoFlipEnable']['value'] = $data;
+				}
+				else if ($name == 'Rotate')
+				{
+					$this->dataInfo['Rotate']['value'] = $data;
+				}
+			}
+    	}
+
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		SetData($this->videoInput->dataInfo, $this->videoInput->payload, $dataArray['videoInput']);
+		SetData($this->videoOutput->dataInfo, $this->videoOutput->payload, $dataArray['videoOutput']);
+		SetData($this->audioInput->dataInfo, $this->audioInput->payload, $dataArray['audioInput']);
+		SetData($this->audioOutput->dataInfo, $this->audioOutput->payload, $dataArray['audioOutput']);
+		SetData($this->audioDetail->dataInfo, $this->audioDetail->payload, $dataArray['audioDetail']);
+		$this->dataInfo['VideoType']['value'] = $dataArray['VideoType'];
+		$this->dataInfo['AutoFlipEnable']['value'] = $dataArray['AutoFlipEnable'];
+		$this->dataInfo['Rotate']['value'] = $dataArray['Rotate'];
+		$this->dataInfo['Reserved']['value'] = $dataArray['Reserved'];
+	}
+
+	function SetPayload()
+	{
+		$this->payload = 	$this->videoInput->payload.$this->videoOutput->payload.	$this->audioInput->payload.$this->audioOutput->payload.
+							  	pack('c1', $this->dataInfo['VideoType']['value']).$this->audioDetail->payload.
+								pack('c1', $this->dataInfo['AutoFlipEnable']['value']).
+								pack('i1', $this->dataInfo['AudioOutputUnitSize']['value']).
+								pack('c1', $this->dataInfo['Rotate']['value']).
+								pack('a108', $this->dataInfo['Reserved']['value']);//MakePayload($this->dataInfo);
+	}
+}
+
+class VideoInput
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Token' 		=> array('value'=>'', 'type'=>'A64'),
+										'Enabled' 	=> array('value'=>0, 'type'=>'c1'),
+										'Channel' 	=> array('value'=>0, 'type'=>'i1'),
+										'Framerate'	=> array('value'=>0, 'type'=>'i1'),
+										'Width'		=>	array('value'=>0, 'type'=>'i1'),
+										'Height' 	=> array('value'=>0, 'type'=>'i1'));
+	}
+}
+
+class VideoOutput
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Token' 	=> array('value'=>'', 'type'=>'A64'),
+										'Enabled'=> array('value'=>0, 'type'=>'c1'));
+	}
+}
+
+class AudioInput
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Token' 		=> array('value'=>'', 'type'=>'A64'),
+										'Enabled'	=> array('value'=>0, 'type'=>'c1'),
+										'Channel'	=> array('value'=>0, 'type'=>'c1'),
+										'Gain'		=> array('value'=>0, 'type'=>'i1'),
+										'Encoding'	=> array('value'=>0, 'type'=>'c1'));
+	}
+}
+
+class AudioOutput
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Token' 		=> array('value'=>'', 'type'=>'A64'),
+										'Enabled'	=> array('value'=>0, 'type'=>'c1'),
+										'Channel'	=> array('value'=>0, 'type'=>'c1'),
+										'Gain'		=> array('value'=>0, 'type'=>'i1'),
+										'Encoding'	=> array('value'=>0, 'type'=>'c1'));
+	}
+}
+
+class AudioDetail
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'AudioChannelsMode' 		=> array('value'=>0, 'type'=>'c1'),
+										'AudioInSource'			=> array('value'=>0, 'type'=>'c1'),
+										'AudioInMicPowerEnable'	=> array('value'=>0, 'type'=>'c1'),
+										'AudioInBitrate'			=> array('value'=>0, 'type'=>'i1'),
+										'AudioInSamplingRate'	=> array('value'=>0, 'type'=>'i1'));
+	}
+}
+?>

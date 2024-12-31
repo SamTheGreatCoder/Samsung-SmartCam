@@ -1,0 +1,197 @@
+<?php
+define('MAX_SCOPE',							11);
+
+
+class SystemConfiguration
+{
+	public 	$deviceInfo;
+	public 	$scope;
+	public 	$discoveryMode;
+	public 	$onvifConf;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public  $headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->deviceInfo 	= new DeviceInfomation();
+		for ($index=0; $index<MAX_SCOPE; ++$index)
+		{
+			$this->scope[$index] = new Scope();
+		}
+		$this->discoveryMode = new DiscoveryMode();
+		$this->onvifConf		= new OnvifConfiguration();
+		$this->headerInfo 		= array('Command'=>CMD_SYSTEM_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo 		= array('Reserved' =>	array('value'=>'', 'type'=>'A125'));
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->deviceInfo->dataInfo).'deviceInfo/'.
+										MakeUnpackFormat('scope', GetDataInfoLength($this->scope[0]->dataInfo), MAX_SCOPE).
+										'A'.GetDataInfoLength($this->discoveryMode->dataInfo).'discoveryMode/'.
+										'A'.GetDataInfoLength($this->onvifConf->dataInfo).'onvifConf/'.
+										MakeDataFormat($this->dataInfo);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		if ($_menu == 'ProductInfo')
+		{
+			SetData($this->deviceInfo->dataInfo, $this->deviceInfo->payload, $xmlArray);
+			$this->deviceInfo->CheckSpecialCharacter();
+		}
+		else if ($_menu == 'Scopes')
+		{
+			$index = 0;
+			foreach ($xmlArray as $data)
+			{
+				SetData($this->scope[$index++]->dataInfo, $this->scope[$index++]->payload, $data);
+			}
+		}
+		else if ($_menu == 'DiscoveryMode')
+		{
+			SetData($this->discoveryMode->dataInfo, $this->discoveryMode->payload, $xmlArray);
+		}
+		else if ($_menu == 'Onvif')
+		{
+			SetData($this->onvifConf->dataInfo, $this->onvifConf->payload, $xmlArray);
+		}
+
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		SetData($this->deviceInfo->dataInfo, $this->deviceInfo->payload, $dataArray['deviceInfo']);
+		for ($index=0; $index<MAX_SCOPE; ++$index)
+		{
+			SetData($this->scope[$index]->dataInfo, $this->scope[$index]->payload, $dataArray['scope'.$index]);
+		}
+		SetData($this->discoveryMode->dataInfo, $this->discoveryMode->payload, $dataArray['discoveryMode']);
+		SetData($this->onvifConf->dataInfo, $this->onvifConf->payload, $dataArray['onvifConf']);
+		SetData($this->dataInfo, $this->payload, $dataArray['Reserved']);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = 	$this->deviceInfo->payload.	GetPayloads($this->scope, MAX_SCOPE).
+								$this->discoveryMode->payload.	$this->onvifConf->payload.MakePayload($this->dataInfo);
+	}
+
+	function GetXMLData($_menu)
+	{
+		if ($_menu == 'ProductInfo')
+		{
+			return MakeXMLData($this->deviceInfo->dataInfo);
+		}
+	}
+}
+
+class DeviceInfomation
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Manufacturer' => array('value'=>'', 'type'=>'A64'),
+										'Model' 			=> array('value'=>'', 'type'=>'A32'),
+										'FirmwareVer' 	=> array('value'=>'', 'type'=>'A16'),
+										'ModuleVer' 	=> array('value'=>'', 'type'=>'A16'),
+										'PtzVer' 		=> array('value'=>'', 'type'=>'A16'),
+										'LastUpdate' 	=> array('value'=>'', 'type'=>'A32'),
+										'SerialNum' 	=> array('value'=>'', 'type'=>'A32'),
+										'HardwareID' 	=> array('value'=>'', 'type'=>'A16'),
+										'DeviceName' 	=> array('value'=>'', 'type'=>'A32'),
+										'Location' 		=> array('value'=>'', 'type'=>'A64'),
+										'Description' 	=> array('value'=>'', 'type'=>'A64'),
+										'Memo' 			=> array('value'=>'', 'type'=>'A128'),
+										'Language' 		=> array('value'=>0, 'type'=>'c1'),
+										'VideoType' 	=> array('value'=>0, 'type'=>'i1'),
+										'IfBoardVersion'=> array('value'=>'', 'type'=>'A16'));
+	}
+
+	function CheckSpecialCharacter()
+	{
+		$specialCharArr = array('#', '%', '&', '+', '=', '\\', ':', '\'', '"', '<', '>');
+		$arrLen = count($specialCharArr);
+
+		foreach ($this->dataInfo as $name=>$value)
+		{
+			if ($name == 'DeviceName' || $name == 'Location' || $name == 'Description' || $name == 'Memo')
+			{
+				for ($index=0; $index<$arrLen; ++$index)
+				{
+					if (strpos($value['value'], $specialCharArr[$index]) != 0)
+					{
+						ResponseText(FALSE);
+					}
+				}
+			}
+		}
+	}
+}
+
+class Scope
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Define' => array('value'=>0, 'type'=>'i1'),
+										'Item' 	=> array('value'=>'', 'type'=>'A64'));
+	}
+}
+
+class DiscoveryMode
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array('Mode' => array('value'=>0, 'type'=>'c1'));
+	}
+}
+
+class OnvifConfiguration
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'UseAuth' 			=> array('value'=>1, 'type'=>'c1'),
+										'Configurable' 	=> array('value'=>0, 'type'=>'c1'),
+										'ServiceRestart'	=>	array('value'=>1, 'type'=>'c1'));
+	}
+}
+
+class DeviceVersion
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public  $headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array('Command'=>CMD_DEVICE_VERSION, 'Action'=>$_action);
+        $this->dataInfo = array(	'WebURL'            => array('value'=>'', 'type'=>'A64'),
+									'DeviceType'        => array('value'=>'', 'type'=>'i1'),
+									'ConnectedMAC'      => array('value'=>'', 'type'=>'A18'),
+									'ISPVersion'        => array('value'=>'', 'type'=>'A16'),
+									'TrackingVersion' 	=> array('value'=>'', 'type'=>'A64'),
+									'BootloaderVersion' => array('value'=>'', 'type'=>'A64'),
+									'CGIVersion'        => array('value'=>'', 'type'=>'A16'));
+    }
+    
+    function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+?>

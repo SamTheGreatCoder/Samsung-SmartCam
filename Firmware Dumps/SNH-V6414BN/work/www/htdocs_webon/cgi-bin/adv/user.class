@@ -1,0 +1,152 @@
+<?php
+
+class UserConfiguration
+{
+	public $user;
+	public $dataInfo;
+	public $payload;
+	public $headerInfo;
+	public $unpackFormat;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		for ($index=0; $index<MAX_USER_10; ++$index) {
+			$this->user[$index] = new User();
+		}
+		$this->headerInfo 	= array('Command'=>CMD_USER, 'Action'=>$_action);
+		if ($GLOBALS['M_SPECIAL_TYPE'] == 1)
+		{
+			$this->dataInfo 	= array('IsEnableNoEncrypt' => array('value'=>0, 'type'=>'c1', 'visible'=>TRUE), // DEV_S1ENC
+										'Period'			=> array('value'=>0, 'type'=>'i1', 'visible'=>TRUE), // DEV_S1PWD_CHANGE_TIME
+										'IsEnablePasswordRestore' => array('value'=>0, 'type'=>'c1', 'visible'=>TRUE)); // DEV_S1PWRESTORE
+			
+			$this->unpackFormat = MakeUnpackFormat('user', GetDataInfoLength($this->user[0]->dataInfo), MAX_USER_10).
+				MakeDataFormat($this->dataInfo);
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$userIndex = 1;
+		if ($GLOBALS['M_SPECIAL_TYPE'] == 1)
+		{
+			// add for S1
+			foreach ($GLOBALS['XMLArray'] as $key=>$data) {
+				// DEV_S1ENC
+				if ($key == 'RTPEncryptSetting') {
+					SetData($this->dataInfo, $this->payload, $data);
+				}
+				else if($key == 'PWDTime') { // DEV_S1PWD_CHANGE_TIME
+					SetData($this->dataInfo, $this->payload, $data);
+				}
+				else if($key == 'PasswordRestoreSetting') { // DEV_S1PWRESTORE
+					SetData($this->dataInfo, $this->payload, $data);
+				}
+				else
+				{
+					if 		($data->GetName() == 'Admin')	SetDataNoTrim($this->user[0]->dataInfo, $this->user[0]->payload, $data);
+					else if 	($data->GetName() == 'Guest') 	SetDataNoTrim($this->user[MAX_USER_10-1]->dataInfo, $this->user[MAX_USER_10-1]->payload, $data);
+					else {				
+						SetDataNoTrim($this->user[$userIndex]->dataInfo, $this->user[$userIndex]->payload, $data);
+						$userIndex++;
+					}
+				}
+			}
+		}
+		else
+		{
+			foreach ($GLOBALS['XMLArray'] as $data) {
+				if 		($data->GetName() == 'Admin')	SetData($this->user[0]->dataInfo, $this->user[0]->payload, $data);
+				else if 	($data->GetName() == 'Guest') 	SetData($this->user[MAX_USER_10-1]->dataInfo, $this->user[MAX_USER_10-1]->payload, $data);
+				else {				
+					SetData($this->user[$userIndex]->dataInfo, $this->user[$userIndex]->payload, $data);
+					$userIndex++;
+				}
+				
+			}
+		}
+		for ($index=$userIndex; $index<=10; ++$index) $this->user[$index]->init_data();
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		if ($GLOBALS['M_SPECIAL_TYPE'] == 1)
+		{
+			$dataArray = unpack($this->unpackFormat, $_payload); //DEV_S1ENC
+		}
+		else
+		{
+			$dataArray = unpack(MakeUnpackFormat('user', GetDataInfoLength($this->user[0]->dataInfo), MAX_USER_10), $_payload);
+		}
+		for ($index=0; $index<MAX_USER_10; ++$index) {
+			if ($GLOBALS['M_SPECIAL_TYPE'] == 1)
+			{
+				SetDataNoTrim($this->user[$index]->dataInfo, $this->user[$index]->payload, $dataArray['user'.$index]);
+			}
+			else
+			{
+				SetData($this->user[$index]->dataInfo, $this->user[$index]->payload, $dataArray['user'.$index]);
+			}
+		}
+		if ($GLOBALS['M_SPECIAL_TYPE'] == 1)
+		{
+			$this->dataInfo['IsEnableNoEncrypt']['value'] = $dataArray['IsEnableNoEncrypt']; //DEV_S1ENC
+			$this->dataInfo['Period']['value'] = $dataArray['Period']; // DEV_S1PWD_CHANGE_TIME
+			$this->dataInfo['IsEnablePasswordRestore']['value'] = $dataArray['IsEnablePasswordRestore']; // DEV_S1PWRESTORE
+		}
+	}
+
+	function SetPayload()
+	{
+		if ($GLOBALS['M_SPECIAL_TYPE'] == 1)
+		{
+			$this->payload = GetPayloads($this->user, MAX_USER_10).MakePayloadNoTrim($this->dataInfo);
+		}
+		else
+		{
+			$this->payload = GetPayloads($this->user, MAX_USER_10);
+		}
+	}
+}
+
+class User
+{
+	public $payload;
+	public $dataInfo;
+	
+	function __construct()
+	{
+		
+			$this->dataInfo = array(	'Enabled' 				=> array('value'=>0, 'type'=>'c1'),
+										'Name' 					=> array('value'=>'', 'type'=>'A16'),
+										'Password' 				=> array('value'=>'', 'type'=>'A17'),
+										'Level'					=>	array('value'=>1, 'type'=>'i1'),
+										'UserRightAudioIn' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightAudioOut' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightRelay' 		=> array('value'=>0, 'type'=>'c1'),
+										'UserRightPTZ' 		=> array('value'=>0, 'type'=>'c1'),
+										'UserRightProfile'	=> array('value'=>0, 'type'=>'c1'),
+										'OnvifUserLevel'		=> array('value'=>0, 'type'=>'c1'),
+										'Reserved' 				=> array('value'=>0, 'type'=>'A14'));		
+	}
+
+	function init_data()
+	{
+		
+			$this->dataInfo = array(	'Enabled' 				=> array('value'=>0, 'type'=>'c1'),
+										'Name' 					=> array('value'=>'', 'type'=>'A16'),
+										'Password' 				=> array('value'=>'', 'type'=>'A17'),
+										'Level'					=>	array('value'=>1, 'type'=>'i1'),
+										'UserRightAudioIn' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightAudioOut' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightRelay' 		=> array('value'=>0, 'type'=>'c1'),
+										'UserRightPTZ' 		=> array('value'=>0, 'type'=>'c1'),
+										'UserRightProfile'	=> array('value'=>0, 'type'=>'c1'),
+										'OnvifUserLevel'		=> array('value'=>3, 'type'=>'c1'),
+										'Reserved' 				=> array('value'=>0, 'type'=>'A14'));
+		
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+?>

@@ -1,0 +1,34 @@
+<?php
+// DEV_S1SMS
+class SMSSetting
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array(	'Command'		=>	CMD_SMS_SETTING, 'Action'=>$_action);
+		$this->dataInfo 		= array(	'UserName' 		=> array('value'=>'', 'type'=>'A16', 'visible'=>TRUE),
+								'Password' 		=> array('value'=>'', 'type'=>'A16', 'visible'=>TRUE),
+								'Sender' 			=> array('value'=>'', 'type'=>'A16', 'visible'=>TRUE),
+								'Body'				=> array('value'=>'', 'type'=>'A160', 'visible'=>TRUE));
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function GetXMLData($_menu)
+	{
+		return MakeXMLData($this->dataInfo);
+	}
+}
+
+?>

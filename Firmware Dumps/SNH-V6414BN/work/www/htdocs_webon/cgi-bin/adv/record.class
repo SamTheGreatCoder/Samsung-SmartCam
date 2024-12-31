@@ -1,0 +1,97 @@
+<?php
+
+class StorageInfo
+{
+	public $payload;
+	public $storage;
+	public $headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array('Command'=>CMD_STORAGE_INFORMATION, 'Action'=>$_action);
+		$this->storage = array();
+		for ($index=0; $index<3; ++$index) {
+			$this->storage[$index] = new Storage();
+		}
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat = MakeUnpackFormat('storage', GetDataInfoLength($this->storage[0]->dataInfo), 3);
+		$dataArray = unpack($unpackFormat, $_payload);
+		for ($index=0; $index<3; ++$index) {
+			SetData($this->storage[$index]->dataInfo, $this->storage[$index]->payload, $dataArray['storage'.$index]);
+		}
+	}
+}
+
+class Storage
+{
+	public 	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo 	= array(	'StorageToken' => array('value'=>'', 'type'=>'A8'),
+											'Type' 			=> array('value'=>0, 'type'=>'c1'),
+											'FileSystem' 	=> array('value'=>0, 'type'=>'c1'),
+											'TotalSize' 	=> array('value'=>0, 'type'=>'i1'),
+											'FreeSize' 		=> array('value'=>0, 'type'=>'i1'),
+											'Status' 		=> array('value'=>0, 'type'=>'c1'),
+											'Reserved' 		=> array('value'=>'', 'type'=>'A64'));
+	}
+}
+
+class RecordConfiguration
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	 	= array( 'Command'=>CMD_RECORD_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo 		= array(	'Enabled' 				=> array('value'=>0, 'type'=>'c1'),
+												'Force1Fps' 			=> array('value'=>0, 'type'=>'c1'),
+												'OverWrite' 			=> array('value'=>0, 'type'=>'c1'),
+												'PreAlarmDuration' 	=> array('value'=>0, 'type'=>'i1'),
+												'PostAlarmDuration' 	=> array('value'=>0, 'type'=>'i1'),
+												'RecordingMode'		=> array('value'=>0, 'type'=>'c1'),
+												'AutoRemoval'			=> array('value'=>0, 'type'=>'c1'),
+												'RemovalPeriod'		=>	array('value'=>1, 'type'=>'i1'),
+												'RemovalPeriodUnit'	=> array('value'=>0, 'type'=>'c1'),
+												'RecordProfileName' 	=> array('value'=>'','type'=>'A64'),
+												'SDFileSystem'		=> array('value'=>0, 'type'=>'c1'),
+												'Reserved' 				=> array('value'=>'','type'=>'A56'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class StorageFormat
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_START)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_STORAGE_FORMAT, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'StorageToken'	=> array('value'=>'', 'type'=>'A8'),
+											'FileSystem' 	=> array('value'=>0, 'type'=>'c1'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+?>

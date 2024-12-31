@@ -1,0 +1,190 @@
+<?php
+
+define('MAX_SUPPORT_TIMEZONE',			1);
+
+
+class DateTimeConfiguration
+{
+	public 	$utcDateTime;
+	public 	$localDateTime;
+	public 	$milliSecond;
+	public 	$currTimezoneIdx;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 		= array( 'Command'=>CMD_DATETIME, 'Action'=>$_action);
+		$this->dataInfo 		= array(	'Type' 				=> array('value'=>0, 'type'=>'c1'),
+												'DaylightSavings' => array('value'=>0, 'type'=>'c1'),
+												'TimeZone' 			=> array('value'=>'', 'type'=>'A64'));
+		$this->utcDateTime 	= new DateTimeFormat();
+		$this->localDateTime = new DateTimeFormat();
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->dataInfo).'dateTimeInfo/'.
+										'A'.GetDataInfoLength($this->utcDateTime->dataInfo).'utcDateTime/'.
+										'A'.GetDataInfoLength($this->localDateTime->dataInfo).'localDateTime/'.
+										'i1'.'milliSecond/'.
+										'c1'.'currTimezoneIdx';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		$datetimeType = 0;
+		foreach($xmlArray as $key => $value)
+		{
+			if ($key == 'Type')
+			{
+				$datetimeType = $value;
+				break;
+			}
+		}
+
+		foreach($xmlArray as $key => $value)
+		{
+			if ($key == "DateTime")
+			{
+				if ($datetimeType == 0)
+				{		// manual, ntp
+					SetData($this->localDateTime->dataInfo, $this->localDateTime->payload, $value);
+					$this->utcDateTime->InitData();
+				}
+				else if ($datetimeType == 2)
+				{		// pc sync
+					SetData($this->utcDateTime->dataInfo, $this->utcDateTime->payload, $value);
+					$this->localDateTime->InitData();
+				}
+			}
+			else if ($key == "CurrTimezoneIdx")
+			{
+				$this->currTimezoneIdx = $value;
+			}
+			else if ($key == "MilliSecond")
+			{
+				$this->milliSecond = $value;
+			}
+			else
+			{
+				$this->dataInfo[$key]['value'] = $value;
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		SetData($this->dataInfo, $this->payload, $dataArray['dateTimeInfo']);
+		SetData($this->utcDateTime->dataInfo, $this->utcDateTime->payload, $dataArray['utcDateTime']);
+		SetData($this->localDateTime->dataInfo, $this->localDateTime->payload, $dataArray['localDateTime']);
+		$this->currTimezoneIdx 	= $dataArray['currTimezoneIdx'];
+		$this->milliSecond 		= $dataArray['milliSecond'];
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = 	MakePayload($this->dataInfo).	$this->utcDateTime->payload.
+								$this->localDateTime->payload.pack("i1", $this->milliSecond).pack("c1", $this->currTimezoneIdx);
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = '';
+		foreach ($this->dataInfo as $name=>$value)
+		{
+			if ($name == 'TimeZone') continue;
+			$msg .= "\t".'<'.$name.'>'.$value['value'].'</'.$name.'>'."\r\n";
+		}
+		$msg .= $this->localDateTime->GetXMLData($_menu);
+		$msg .= "\t".'<CurrTimezoneIdx>'.$this->currTimezoneIdx.'</CurrTimezoneIdx>'."\r\n";
+
+		return $msg;
+	}
+}
+
+class DateTimeFormat
+{
+	public  	$payload;
+	public  	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Year'	=> array('value'=>0, 'type'=>'i1'),
+										'Month'	=> array('value'=>0, 'type'=>'i1'),
+										'Day'		=> array('value'=>0, 'type'=>'i1'),
+										'Hour'	=> array('value'=>0, 'type'=>'i1'),
+										'Min'		=> array('value'=>0, 'type'=>'i1'),
+										'Sec'		=> array('value'=>0, 'type'=>'i1'));
+	}
+
+	function InitData()
+	{
+		$this->dataInfo['Year']['value'] = 0;
+		$this->dataInfo['Month']['value']= 0;
+		$this->dataInfo['Day']['value'] 	= 0;
+		$this->dataInfo['Hour']['value'] = 0;
+		$this->dataInfo['Min']['value'] 	= 0;
+		$this->dataInfo['Sec']['value'] 	= 0;
+		$this->payload = MakePayload($this->dataInfo);
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = "\t".'<DateTime>'."\r\n";
+		foreach ($this->dataInfo as $name=>$value) {
+			if ($name == 'Year' && $value==1999) {
+				$value['value'] += 1;
+			}
+			$msg .= "\t\t".'<'.$name.'>'.$value['value'].'</'.$name.'>'."\r\n";
+		}
+		$msg .= "\t".'</DateTime>'."\r\n";
+		return $msg;
+	}
+}
+
+class TimezoneInformation
+{
+	public	$timezone;
+	public 	$payload;
+	public 	$headerInfo;
+	public 	$unpackFormat = '';
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array('Command'=>CMD_TIMEZONE_INFORMATION, 'Action'=>$_action);
+		for ($index=0; $index<MAX_SUPPORT_TIMEZONE; ++$index)
+		{
+			$this->unpackFormat .= "A64"."timezone".$index."/";
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+
+		for ($index=0; $index<MAX_SUPPORT_TIMEZONE; ++$index)
+		{
+			$this->timezone[$index] = $dataArray['timezone'.$index];
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		for ($index=0; $index<MAX_SUPPORT_TIMEZONE; ++$index)
+		{
+			$this->payload .= pack("A64", $this->timezone[$index]);
+		}
+	}
+}
+?>

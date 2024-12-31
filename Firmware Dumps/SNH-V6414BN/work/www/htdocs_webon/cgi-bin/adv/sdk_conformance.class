@@ -1,0 +1,263 @@
+<?php
+define('SIZE_APPNAME',      60);
+define('SIZE_CAMERANAME',   10);
+define('SIZE_FIRMWARE',     16 );
+define('SIZE_SERIALNO',     32);
+
+
+class SDK_Conformance
+{
+    public $payload;
+    public $headerInfo;
+    public $sdk_app_get_conf_result;
+    public $sdk_app_getall_conf_result;
+    function __construct($_action=ACTION_START)
+    {
+        error_log("Construct Data in SDK_CONFORMANCE class");
+        $this->headerInfo =     array(  'Command'=>CMD_RUN_CONFORMANCE, 'Action'=>$_action);
+
+        switch($_action) 
+        {
+            case ACTION_START: case ACTION_STOP:
+            {
+                error_log("in SDK_CONFORMANCE action is ".$_action);
+                $this->dataInfo   =     array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+            } break;
+            case ACTION_GET:
+            {
+                error_log("in sdk.class action is ".$_action);
+                $this->dataInfo   =     array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+                $this->sdk_app_get_conf_result = new SDK_Get_Conformance_Results();
+            } break;
+            case ACTION_GET_ALL:
+            {
+                error_log("in sdk.class action is ".$_action);
+                $this->dataInfo   =     array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+                $this->sdk_app_getall_conf_result = new SDK_GetAll_Conformance_Results();
+            } break;
+        }
+    }
+    
+    function XMLtoArray($_menu)
+    {
+        error_log("XMLtoArray SendResponse". $GLOBALS['XMLArray']);
+        //error_log("payload 
+        SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+    }
+    
+    function PayloadToArray($_payload)
+    {
+        error_log("Payload toArray in SDK_CONFORMANCE");
+        switch($this->headerInfo['Action'])
+        {
+            case ACTION_GET:
+            $this->sdk_app_get_conf_result->UnpackConfData($_payload);
+            break;
+            case ACTION_GET_ALL:
+            $this->sdk_app_getall_conf_result->UnpackConfData($_payload);
+            break;
+
+       }
+    }
+    
+    function SendResponse()
+    {
+        error_log("SendResponse in SDK_CONFORMANCE");
+        switch($this->headerInfo['Action'])
+        {
+            case ACTION_GET:{
+                $app_name                  = $this->sdk_app_get_conf_result->dataInfo['app_name']['value'];
+                $app_sys_mem               = $this->sdk_app_get_conf_result->dataInfo['sys_mem']['value'];
+                $app_sys_cpu               = $this->sdk_app_get_conf_result->dataInfo['sys_cpu']['value'];
+                $app_app_cpu_usage_percent = $this->sdk_app_get_conf_result->dataInfo['app_cpu_usage_percent']['value'];
+                $app_app_mem_usage_percent = $this->sdk_app_get_conf_result->dataInfo['app_mem_usage_percent']['value'];
+                $app_app_network_usage         = $this->sdk_app_get_conf_result->dataInfo['app_network_usage']['value'];
+                $app_app_flash_mem_usage         = $this->sdk_app_get_conf_result->dataInfo['app_flash_mem_usage']['value'];
+                $app_app_sdcard_usage       = $this->sdk_app_get_conf_result->dataInfo['app_sdcard_usage']['value'];
+                $app_app1_framerate       = $this->sdk_app_get_conf_result->dataInfo['app1_framerate']['value'];
+                $app_app2_framerate       = $this->sdk_app_get_conf_result->dataInfo['app2_framerate']['value'];
+                $msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+                $msg .= '<Confresult>'."\n";
+                $msg .= '<appName>'.$app_name.'</appName>'."\n";
+                $msg .= '<sysMem>'.$app_sys_mem.'</sysMem>'."\n";
+                $msg .= '<sysCpu>'.$app_sys_cpu.'</sysCpu>'."\n";
+                $msg .= '<appCpu>'.$app_app_cpu_usage_percent.'</appCpu>'."\n";
+                $msg .= '<appMem>'.$app_app_mem_usage_percent.'</appMem>'."\n";
+                $msg .= '<appNet>'.$app_app_network_usage.'</appNet>'."\n";
+                $msg .= '<appFlash>'.$app_app_flash_mem_usage.'</appFlash>'."\n";
+                $msg .= '<appSdcard>'.$app_app_sdcard_usage.'</appSdcard>'."\n";
+                $msg .= '<app1Framerate>'.$app_app1_framerate.'</app1Framerate>'."\n";
+                $msg .= '<app2Framerate>'.$app_app2_framerate.'</app2Framerate>'."\n";
+                $msg .= '</Confresult>'."\n";
+                header('Content-Type: text/xml; charset=utf-8');
+                header('Content-Length: '.strlen($msg));
+                echo $msg;
+                exit;
+           } break;
+                    
+            case ACTION_GET_ALL:{
+        	error_log("ACTION_GET_ALL **********************");
+                $app_name                  	 = $this->sdk_app_getall_conf_result->dataInfo['app_name']['value'];
+                $app_prof1_name   	         = $this->sdk_app_getall_conf_result->dataInfo['prof1_name']['value'];
+                $app_prof1_id     	         = $this->sdk_app_getall_conf_result->dataInfo['prof1_id']['value'];
+                $app_prof1_width		 = $this->sdk_app_getall_conf_result->dataInfo['prof1_width']['value'];
+                $app_prof1_height		 = $this->sdk_app_getall_conf_result->dataInfo['prof1_height']['value'];
+                $app_prof1_fps         		 = $this->sdk_app_getall_conf_result->dataInfo['prof1_fps']['value'];
+                $app_prof2_name   	         = $this->sdk_app_getall_conf_result->dataInfo['prof2_name']['value'];
+                $app_prof2_id     	         = $this->sdk_app_getall_conf_result->dataInfo['prof2_id']['value'];
+                $app_prof2_width		 = $this->sdk_app_getall_conf_result->dataInfo['prof2_width']['value'];
+                $app_prof2_height		 = $this->sdk_app_getall_conf_result->dataInfo['prof2_height']['value'];
+                $app_prof2_fps         		 = $this->sdk_app_getall_conf_result->dataInfo['prof2_fps']['value'];
+                $app_max_cpu_limit       	= $this->sdk_app_getall_conf_result->dataInfo['app_max_cpu_limit']['value'];
+                $app_sys_feature_model     	= $this->sdk_app_getall_conf_result->dataInfo['sys_feature_model']['value'];
+                $app_sys_camera_model     	= $this->sdk_app_getall_conf_result->dataInfo['sys_camera_model']['value'];
+                $app_SerialNumber     		= $this->sdk_app_getall_conf_result->dataInfo['sys_SerialNumber']['value'];
+                $app_FirmwareVersion     	= $this->sdk_app_getall_conf_result->dataInfo['sys_FirmwareVersion']['value'];
+                
+                $msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+                $msg .= '<Confresult>'."\n";
+                $msg .= '<appName>'.$app_name.'</appName>'."\n";
+                $msg .= '<prof1Name>'.$app_prof1_name.'</prof1Name>'."\n";
+                $msg .= '<Prof1Id>'.$app_prof1_id.'</Prof1Id>'."\n";
+                $msg .= '<Prof1Width>'.$app_prof1_width.'</Prof1Width>'."\n";
+                $msg .= '<Prof1Height>'.$app_prof1_height.'</Prof1Height>'."\n";
+                $msg .= '<prof1fps>'.$app_prof1_fps.'</prof1fps>'."\n";
+                $msg .= '<prof2Name>'.$app_prof2_name.'</prof2Name>'."\n";
+                $msg .= '<Prof2Id>'.$app_prof2_id.'</Prof2Id>'."\n";
+                $msg .= '<Prof2Width>'.$app_prof2_width.'</Prof2Width>'."\n";
+                $msg .= '<Prof2Height>'.$app_prof2_height.'</Prof2Height>'."\n";
+                $msg .= '<prof2fps>'.$app_prof2_fps.'</prof2fps>'."\n";
+                $msg .= '<appMaxCpuLimit>'.$app_max_cpu_limit.'</appMaxCpuLimit>'."\n";
+                $msg .= '<appFeatureModel>'.$app_sys_feature_model.'</appFeatureModel>'."\n";
+                $msg .= '<appCameraModel>'.$app_sys_camera_model.'</appCameraModel>'."\n";
+                $msg .= '<appSerialNumber>'.$app_SerialNumber.'</appSerialNumber>'."\n";
+                $msg .= '<appFirmwareVersion>'.$app_FirmwareVersion.'</appFirmwareVersion>'."\n";
+                $msg .= '</Confresult>'."\n";
+                header('Content-Type: text/xml; charset=utf-8');
+                header('Content-Length: '.strlen($msg));
+               error_log("in sdk.class action is ".$msg); 
+                echo $msg;
+                exit;
+           } break;
+                    
+            default :{
+                $msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+                //$msg .='<Cresult>'."\n";
+                $msg .= '<Results>'.'OK'.'</Results>'."\n";
+                //$msg .='</Cresult>'."\n";
+                header('Content-Type: text/xml; charset=utf-8');
+                header('Content-Length: '.strlen($msg));
+                error_log("SendResponse Conformance ". $msg);
+                echo $msg;
+                exit;
+            } break;
+       }
+    }
+    
+}
+class SDK_Get_Conformance_Results
+{
+    public $payload;
+    public $dataInfo;
+    function __construct()
+    {
+        error_log("Construct Data in SDK_Get_Conformance_Results class");
+
+        $this->dataInfo   =     array(  'app_name'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+                                                'sys_mem'               => array('value'=>0, 'type'=>'I1'),
+                                                'sys_cpu'               => array('value'=>0, 'type'=>'I1'),
+                                                'app_cpu_usage_percent' => array('value'=>0, 'type'=>'I1'),
+                                                'app_mem_usage_percent' => array('value'=>0, 'type'=>'I1'),
+                                                'app_network_usage'     => array('value'=>0, 'type'=>'I1'),
+                                                'app_flash_mem_usage'     => array('value'=>0, 'type'=>'I1'),
+                                                'app_sdcard_usage'   => array('value'=>0, 'type'=>'I1'),
+                                                'app1_framerate'   => array('value'=>0, 'type'=>'I1'),
+                                                'app2_framerate'   => array('value'=>0, 'type'=>'I1'),
+                                              );
+        $this->payloadLength    = GetDataInfoLength($this->dataInfo);
+    }
+    function UnpackConfData($_payload)
+    {
+        SetData($this->dataInfo, $this->payload, $_payload);
+    }
+    function UnpackData($_dataArray)
+    {
+        //error_log("Payload toArray in sdk upload results Class".$_payload);
+        //SetData($this->dataInfo, $this->payload, $_payload);
+        
+        //error_log("_dataArray".$_dataArray);
+        $temp_dataformat = MakeDataFormat($this->dataInfo);
+        //error_log("temp_dataformat ".$temp_dataformat);
+        $_dataArray = unpack($temp_dataformat, $_dataArray);
+
+        $this->dataInfo['app_name']['value']              = $_dataArray['app_name'];
+        $this->dataInfo['sys_mem']['value']               = $_dataArray['sys_mem'];
+        $this->dataInfo['sys_cpu']['value']               = $_dataArray['sys_cpu'];
+        $this->dataInfo['app_cpu_usage_percent']['value'] = $_dataArray['app_cpu_usage_percent'];
+        $this->dataInfo['app_mem_usage_percent']['value'] = $_dataArray['app_mem_usage_percent'];
+        $this->dataInfo['app_network_usage']['value']     = $_dataArray['app_network_usage'];
+        $this->dataInfo['app_sdcard_usage']['value']   = $_dataArray['app_sdcard_usage'];
+        $this->dataInfo['app1_framerate']['value']   = $_dataArray['app1_framerate'];
+        $this->dataInfo['app2_framerate']['value']   = $_dataArray['app2_framerate'];
+    }
+}
+class SDK_GetAll_Conformance_Results
+{
+    public $payload;
+    public $dataInfo;
+    function __construct()
+    {
+        error_log("Construct Data in SDK_Get_Conformance_Results class");
+
+        $this->dataInfo   =     array(  'app_name'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+                                                'prof1_name'             => array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+                                                'prof1_id'               => array('value'=>0, 'type'=>'I1'),
+                                                'prof1_width'		 => array('value'=>0, 'type'=>'I1'),
+                                                'prof1_height' 		 => array('value'=>0, 'type'=>'I1'),
+                                                'prof1_fps'     	 => array('value'=>0, 'type'=>'I1'),
+                                                'prof2_name'             => array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+                                                'prof2_id'               => array('value'=>0, 'type'=>'I1'),
+                                                'prof2_width' 		 => array('value'=>0, 'type'=>'I1'),
+                                                'prof2_height'		 => array('value'=>0, 'type'=>'I1'),
+                                                'prof2_fps'   		 => array('value'=>0, 'type'=>'I1'),
+                                                'app_max_cpu_limit'   => array('value'=>0, 'type'=>'I1'),
+                                                'sys_feature_model'   => array('value'=>0, 'type'=>'I1'),
+						'sys_camera_model'=> array('value'=>'', 'type'=>'A'.SIZE_CAMERANAME),
+						'sys_SerialNumber'=> array('value'=>'', 'type'=>'A'.SIZE_SERIALNO),
+						'sys_FirmwareVersion'=> array('value'=>'', 'type'=>'A'.SIZE_FIRMWARE),
+                                              );
+        $this->payloadLength    = GetDataInfoLength($this->dataInfo);
+    }
+    function UnpackConfData($_payload)
+    {
+        SetData($this->dataInfo, $this->payload, $_payload);
+    }
+    function UnpackData($_dataArray)
+    {
+        //error_log("Payload toArray in sdk upload results Class".$_payload);
+        //SetData($this->dataInfo, $this->payload, $_payload);
+        
+        //error_log("_dataArray".$_dataArray);
+        $temp_dataformat = MakeDataFormat($this->dataInfo);
+        //error_log("temp_dataformat ".$temp_dataformat);
+        $_dataArray = unpack($temp_dataformat, $_dataArray);
+
+        $this->dataInfo['app_name']['value']              = $_dataArray['app_name'];
+        $this->dataInfo['prof1_name']['value']            = $_dataArray['prof1_name'];
+        $this->dataInfo['prof1_id']['value']              = $_dataArray['prof1_id'];
+        $this->dataInfo['prof1_width']['value']		  = $_dataArray['prof1_width'];
+        $this->dataInfo['prof1_height']['value'] 	  = $_dataArray['prof1_height'];
+        $this->dataInfo['prof1_fps']['value']     	  = $_dataArray['prof1_fps'];
+        $this->dataInfo['prof2_name']['value']            = $_dataArray['prof2_name'];
+        $this->dataInfo['prof2_id']['value']              = $_dataArray['prof2_id'];
+        $this->dataInfo['prof2_width']['value']		  = $_dataArray['prof2_width'];
+        $this->dataInfo['prof2_height']['value'] 	  = $_dataArray['prof2_height'];
+        $this->dataInfo['prof2_fps']['value']     	  = $_dataArray['prof2_fps'];
+        $this->dataInfo['app_max_cpu_limit']['value']   = $_dataArray['app_max_cpu_limit'];
+        $this->dataInfo['sys_feature_model']['value']   = $_dataArray['sys_feature_model'];
+        $this->dataInfo['sys_camera_model']['value']   = $_dataArray['sys_camera_model'];
+        $this->dataInfo['sys_SerialNumber']['value']   = $_dataArray['sys_SerialNumber'];
+        $this->dataInfo['sys_FirmwareVersion']['value']   = $_dataArray['sys_FirmwareVersion'];
+    }
+}
+?>

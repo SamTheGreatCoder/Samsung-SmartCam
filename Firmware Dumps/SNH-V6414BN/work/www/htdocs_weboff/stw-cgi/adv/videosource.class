@@ -1,0 +1,56 @@
+<?php
+
+class VideoSource
+{
+	public 	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_VIDEO_SOURCE, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Index' 		=> array('value'=>0, 'type'=>'i1'),
+											'Token' 		=> array('value'=>0, 'type'=>'A64'),
+											'Framerate' => array('value'=>0, 'type'=>'i1'),
+											'Width' 		=> array('value'=>0, 'type'=>'i1'),
+											'Height' 	=> array('value'=>0, 'type'=>'i1'),
+											'Flip' 		=> array('value'=>0, 'type'=>'c1'),
+											'Mirror' 	=> array('value'=>0, 'type'=>'c1'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class PrivacyMask
+{
+	public 	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_PRIVACY_MASK, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Use' 	=> array('value'=>0, 'type'=>'c1'),
+											'Color' 	=> array('value'=>0, 'type'=>'i1'),
+											'Pattern'=> array('value'=>0, 'type'=>'i1'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+?>

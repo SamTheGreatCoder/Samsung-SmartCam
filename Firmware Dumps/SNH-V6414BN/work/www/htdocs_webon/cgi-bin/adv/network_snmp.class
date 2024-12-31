@@ -1,0 +1,100 @@
+<?php
+
+class SNMPConfiguration
+{
+	public $headerInfo;
+	public $dataInfo;
+	public $payload;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array(	'Command'=>CMD_SNMP_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo 	= array( 	'EnabledVersion1'		=>array('value'=>'0', 'type'=>'c1'),
+											'EnabledVersion2'		=>array('value'=>'0', 'type'=>'c1'),
+											'EnabledVersion3'		=>array('value'=>'0', 'type'=>'c1'),
+											'ReadCommunity'		=>array('value'=>'0', 'type'=>'A64'),
+											'WriteCommunity'		=>array('value'=>'0', 'type'=>'A64'),
+											'SecurityPassword'	=>array('value'=>'0', 'type'=>'A64'),
+											'Reserved'			   =>array('value'=>'', 'type'=>'A64'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+define('MAX_TRAP', 1);
+
+class SNMPTrapConfiguration
+{
+	public $headerInfo;
+	public $enabled;
+	public $payload;
+	public $trapInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array('Command'=>CMD_SNMP_TRAP_CONFIGURATION, 'Action'=>$_action);
+		$this->trapInfo = array();
+		for ($index=0; $index<MAX_TRAP; ++$index) {
+			$this->trapInfo[$index] = new TrapInfo();
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach($GLOBALS['XMLArray'] as $name=>$value) {
+			if 		($name == 'Enabled') 	$this->enabled = $value;
+			else if 	(substr($name, 0, -1) == 'TrapInfo') 	{
+				$index = (int)substr($name, -1);
+				SetData($this->trapInfo[$index]->dataInfo, $this->trapInfo[$index]->payload, $value);
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{	
+		$unpackFormat = 'c1Enabled/'.MakeUnpackFormat('TrapInfo', GetDataInfoLength($this->trapInfo[0]->dataInfo), MAX_TRAP);
+		$dataArray = unpack($unpackFormat, $_payload);
+		$this->enabled = $dataArray['Enabled'];
+		for ($index=0; $index<MAX_TRAP; ++$index) {		
+			SetData($this->trapInfo[$index]->dataInfo, $this->trapInfo[$index]->payload, $dataArray['TrapInfo'.$index]);
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = pack('c1', $this->enabled).GetPayloads($this->trapInfo, MAX_TRAP);
+	}
+}
+
+class TrapInfo
+{
+	public $payload;
+	public $dataInfo;
+	
+	function __construct()
+	{
+		$this->dataInfo = array(	'Address'					=>array('value'=>'0', 'type'=>'A40'),
+										'Community'					=>array('value'=>'0', 'type'=>'A64'),
+										'AuthenticationFailure' =>array('value'=>'0', 'type'=>'c1'),
+										'ColdStart'					=>array('value'=>'0', 'type'=>'c1'),
+										'LinkUp'						=>array('value'=>'0', 'type'=>'c1'),
+										'WarmStart'			   	=>array('value'=>'0', 'type'=>'c1'),
+										'AlarmIn1'			    =>array('value'=>'0', 'type'=>'c1'), 
+		 								'AlarmIn2'			    =>array('value'=>'0', 'type'=>'c1'), 
+  										'AlarmIn3'			    =>array('value'=>'0', 'type'=>'c1'), 
+  										'AlarmIn4'			    =>array('value'=>'0', 'type'=>'c1'), 
+  										'AlarmOut1'			    =>array('value'=>'0', 'type'=>'c1'), 
+  										'AlarmOut2'			    =>array('value'=>'0', 'type'=>'c1'),
+										'Tampering'			    =>array('value'=>'0', 'type'=>'c1')); 
+	}
+}
+?>

@@ -1,0 +1,32 @@
+<?php
+
+class SerialConfiguration
+{
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array(	'Command'	=>CMD_SERIAL, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'BaudRate'	=> array('value'=>0, 'type'=>'i1'),
+											'ParityBit' => array('value'=>0, 'type'=>'i1'),
+											'StopBit' 	=> array('value'=>0, 'type'=>'i1'),
+											'DataBit' 	=> array('value'=>0, 'type'=>'i1'),
+											'Protocol' 	=> array('value'=>0, 'type'=>'i1'),
+											'CameraID' 	=> array('value'=>0, 'type'=>'i1'),
+											'FocusControl'	=> array('value'=>0, 'type'=>'c1'),
+											'Reserved'		=> array('value'=>0, 'type'=>'A3'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+?>

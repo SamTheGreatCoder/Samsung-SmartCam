@@ -1,0 +1,60 @@
+<?php
+
+class FirmwareUpdateConfiguration
+{
+    public $headerInfo;
+    public $payload;
+    public $dataInfo;
+
+    function __construct($_action=ACTION_GET)
+    {
+        $this->headerInfo	= array('Command'=>CMD_FIRMWARE_UPDATE, 'Action'=>$_action);
+        $this->dataInfo = array('CgiZombieInstAddr' => array('value' => 0, 'type' => 'i1'),
+                                'DoReset' => array('value' => 0, 'type' => 'i1'),
+                                'FirmwareFilePath'  => array('value' => '', 'type' => 'A255'));
+    }
+
+    function PayloadToArray($_payload)
+	{
+        $unpackFormat = MakeDataFormat($this->dataInfo);
+        $dataArray = unpack($unpackFormat, $_payload);
+        SetData($this->dataInfo, $this->payload, $dataArray);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+class FirmwareUpdateConfiguration_HSS
+{
+    public $headerInfo;
+    public $payload;
+    public $dataInfo;
+
+    function __construct($_action=ACTION_SET)
+    {
+        $this->headerInfo	= array('Command'=>CMD_FIRMWARE_UPGRADE_2, 'Action'=>$_action);
+        $this->dataInfo = array('type' => array('value' => 0, 'type' => 'i1'),
+                                'domain' => array('value' => '', 'type' => 'A128'),
+                                'resv'  => array('value' => '', 'type' => 'A124'));
+								// type = 0 : real server, type = 4 : dev server
+		
+		$this->SetPayload();
+    }
+
+    function PayloadToArray($_payload)
+	{
+        $unpackFormat = MakeDataFormat($this->dataInfo);
+        $dataArray = unpack($unpackFormat, $_payload);
+        SetData($this->dataInfo, $this->payload, $dataArray);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+?>

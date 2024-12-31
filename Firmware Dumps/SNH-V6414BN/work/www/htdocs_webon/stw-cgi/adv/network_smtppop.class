@@ -1,0 +1,39 @@
+<?php
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+/**
+ * Description of POPSetting
+ *
+ * @author a120520
+ */
+class POPSetting
+{
+    public 	$payload;
+	public 	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array( 'Command'		=>	CMD_POP_SETTING, 'Action'=>$_action);
+		$this->dataInfo 	= array( 'POPHost' 	=> array('value'=>'', 'type'=>'A64'),
+									 'POPUsername' => array('value'=>'', 'type'=>'A64'),
+									  'POPPassword' 	=> array('value'=>'', 'type'=>'A64'),
+									  'POPPort'		=> array('value'=>0, 'type'=>'i1'));
+											
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+
+?>

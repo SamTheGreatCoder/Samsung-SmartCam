@@ -1,0 +1,129 @@
+<?php
+
+class VideoProfile
+{
+	public 	$profile;
+	public 	$payload;
+	public  	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_SIMPLE_PROFILE, 'Action'=>$_action);
+		$this->profile = array();
+		for ($index=0; $index<MAX_PROFILE; ++$index) {
+			$this->profile[$index] = new VideoProfileConfiguration();
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach ($GLOBALS['XMLArray'] as $key=>$data) {
+			if ($this->headerInfo['Action'] == ACTION_REMOVE) {
+				$this->payload = pack('a64', trim($this->profile[(int)$data]->dataInfo['Token']['value']));
+			}
+			else {
+				if ($key == 'Index') {
+					SetData($this->profile[(int)$data]->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+					break;
+				}
+			}
+		}
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat = MakeUnpackFormat('profile', GetDataInfoLength($this->profile[0]->dataInfo), MAX_PROFILE);
+		$dataArray = unpack($unpackFormat, $_payload);
+		for ($index=0; $index<MAX_PROFILE; ++$index) {
+			SetData($this->profile[$index]->dataInfo, $this->profile[$index]->payload, $dataArray['profile'.$index]);
+		}
+	}
+}
+
+class VideoProfileConfiguration
+{
+	public $payload;
+	public $dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Name'				=> array('value'=>'', 'type'=>'A64'),
+										'Token'				=> array('value'=>'', 'type'=>'A64'),
+										'Index'				=> array('value'=>0, 'type'=>'c1'),
+										'Default'			=> array('value'=>0, 'type'=>'c1'),
+										'FixedRateProfile'=> array('value'=>0, 'type'=>'c1'),
+										'EventProfile'		=> array('value'=>0, 'type'=>'c1'),
+										'RecordProfile'	=> array('value'=>0, 'type'=>'c1'),
+										'UseAudioIn'		=>	array('value'=>0, 'type'=>'c1'),
+										'UseATC'				=>	array('value'=>0, 'type'=>'c1'),
+										'ATC_Sensitivity'	=>	array('value'=>4 , 'type'=>'c1'),
+										'ATC_Limit'			=>	array('value'=>50 , 'type'=>'i1'),
+										'UseCropEncoding'	=> array('value'=>0, 'type'=>'c1'),
+										'CropXpos' 			=> array('value'=>0, 'type'=>'i1'),
+										'CropYpos' 			=> array('value'=>0, 'type'=>'i1'),
+										'CropWidth' 		=> array('value'=>0, 'type'=>'i1'),
+										'CropHeight' 		=> array('value'=>0, 'type'=>'i1'),
+										'FishEyeViewModeIndex' 	=> array('value'=>0, 'type'=>'i1'),
+										'CropRatio'			=> array('value'=>0, 'type'=>'c1'),
+										'EncoderToken' 	=> array('value'=>'', 'type'=>'A64'),
+										'EncoderName' 		=> array('value'=>'', 'type'=>'A64'),
+										'UseCount' 			=> array('value'=>0, 'type'=>'c1'),
+										'Encoding'			=>	array('value'=>0, 'type'=>'c1'),
+										'ResolWidth' 		=> array('value'=>0, 'type'=>'i1'),
+										'ResolHeight' 		=> array('value'=>0, 'type'=>'i1'),
+										'Compression' 		=> array('value'=>10, 'type'=>'c1'),
+										'FrameRateLimit' 	=> array('value'=>0, 'type'=>'i1'),
+										'EncodingInterval'=> array('value'=>0, 'type'=>'i1'),
+										'BitrateLimit' 	=> array('value'=>0, 'type'=>'i1'),
+										'ConstantBitrate' => array('value'=>1, 'type'=>'c1'),
+										'MPEG4GovLength' 	=> array('value'=>15, 'type'=>'i1'),
+										'MPEG4Profile' 	=> array('value'=>0, 'type'=>'c1'),
+										'MPEG4Priority' 	=> array('value'=>0, 'type'=>'c1'),
+										'MPEG4DeInterlace'=> array('value'=>0, 'type'=>'c1'),
+										'H264GovLength' 	=> array('value'=>15, 'type'=>'i1'),
+										'H264Profile' 		=> array('value'=>3, 'type'=>'c1'),
+										'H264Entropy' 		=> array('value'=>0, 'type'=>'c1'),
+										'H264Priority' 	=> array('value'=>0, 'type'=>'c1'),
+										'H264Deblock' 		=> array('value'=>0, 'type'=>'c1'),
+										'H264MotionEst' 	=> array('value'=>0, 'type'=>'c1'),
+										'RTPEnabled'		=> array('value'=>0, 'type'=>'c1'),
+										'RTPIPv4Addr' 		=> array('value'=>'', 'type'=>'A16'),
+										'RTPIPv6Addr' 		=> array('value'=>'', 'type'=>'A40'),
+										'RTPPort' 			=> array('value'=>0, 'type'=>'i1'),
+										'RTPTTL' 			=> array('value'=>1, 'type'=>'c1'),
+										'RTPAutoStart' 	=> array('value'=>0, 'type'=>'c1'),
+										'VNPEnabled'		=> array('value'=>0, 'type'=>'c1'),
+										'VNPIPv4Addr' 		=> array('value'=>'', 'type'=>'A16'),
+										'VNPIPv6Addr' 		=> array('value'=>'', 'type'=>'A40'),
+										'VNPPort' 			=> array('value'=>0, 'type'=>'i1'),
+										'VNPTTL' 			=> array('value'=>1, 'type'=>'c1'),
+										'VNPAutoStart' 	=> array('value'=>0, 'type'=>'c1'),
+										'SessionTimeOut'	=> array('value'=>30, 'type'=>'i1'),
+										'UseSmartCodec' 	=> array('value'=>0, 'type'=>'c1'));
+	}
+}
+
+class StreammingDisconnection
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_STREAMMING_DISCONNECTION, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Enabled'	=> array('value'=>0, 'type'=>'c1'),
+											'Reserved'	=> array('value'=>0, 'type'=>'A3'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+?>

@@ -1,0 +1,5 @@
+#!/bin/sh
+
+/root/run.sh &
+
+exit 0

@@ -1,0 +1,68 @@
+<?php
+require_once ('event_common.class');
+
+class TamperingConfiguration
+{
+	public	$schedule;
+	public	$action;
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+	public	$unpackFormat;
+	public	$payloadLength;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_TAMPERING_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo		= array(	'Enabled'		=> array('value'=>0, 'type'=>'c1'),
+											'Sensitivity'	=> array('value'=>0, 'type'=>'c1'),
+											'Reserved' 		=> array('value'=>'', 'type'=>'A8'));
+
+		$this->schedule = new EventSchedule();
+		$this->action 	 = new EventAction();
+		$this->unpackFormat	=	'A'.GetDataInfoLength($this->dataInfo).'tamperingInfo/'.
+										'A'.$this->schedule->payloadLength.'Schedule'.'/'.
+										'A'.$this->action->payloadLength.'Action/'.
+										'A128'.'Reserved';
+
+		$this->payloadLength =	GetDataInfoLength($this->dataInfo)+$this->schedule->payloadLength+$this->action->payloadLength+128;
+	}
+
+	function XMLtoArray($_menu)
+	{
+
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach($xmlArray as $name=>$value)
+		{
+			if ($name== 'Schedule')
+			{
+				$this->schedule->ParserXML($value);
+			}
+			else if 	($name == 'Action')
+			{
+				$this->action->ParserXML($value);
+			}
+			else
+			{
+				$this->dataInfo[$name]['value'] = $value;
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		$this->schedule->UnpackData($dataArray['Schedule']);
+		$this->action->UnpackData($dataArray['Action']);
+		SetData($this->dataInfo, $this->payload, $dataArray['tamperingInfo']);
+
+	}
+
+	function SetPayload()
+	{
+		$this->payload =	MakePayload($this->dataInfo).$this->schedule->payload.$this->action->payload.pack('a128', '');
+	}
+}
+?>

@@ -1,0 +1,107 @@
+<?php
+define('MAX_QOS', 10);
+
+class QoSConfiguration
+{
+	public $headerInfo;
+	public $dataInfo;
+
+	public $ipv4QoS;
+	public $ipv6QoS;
+	public $unpackFormat;
+	public $payload;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_QOS_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo	= array('Reserved' => array('value'=>'', 'type'=>'A64'));
+		for ($index=0; $index<MAX_QOS; ++$index) {
+			$this->ipv4QoS[$index] = new QoSIPv4Address();
+			$this->ipv6QoS[$index] = new QoSIPv6Address();
+		}
+		$this->unpackFormat =		MakeUnpackFormat('IPv4QoS', GetDataInfoLength($this->ipv4QoS[0]->dataInfo), MAX_QOS).
+										MakeUnpackFormat('IPv6QoS', GetDataInfoLength($this->ipv6QoS[0]->dataInfo), MAX_QOS).
+										'A'.GetDataInfoLength($this->dataInfo).'QoS';
+	}
+
+	function XMLtoArray($menu)
+	{
+		$ipv4Index = $ipv6Index = 0;
+		foreach ($GLOBALS['XMLArray'] as $data) {
+			if (substr($data->GetName(), 0, 4) == 'IPv4') {
+				SetData($this->ipv4QoS[$ipv4Index]->dataInfo,$this->ipv4QoS[$ipv4Index]->payload , $data);
+				$ipv4Index++;
+			}
+			else if (substr($data->GetName(), 0, 4) == 'IPv6') {
+				SetData($this->ipv6QoS[$ipv6Index]->dataInfo,$this->ipv6QoS[$ipv6Index]->payload , $data);
+				$ipv6Index++;
+			}
+		}
+		for ($index=$ipv4Index; $index<10; ++$index) $this->ipv4QoS[$index]->init_data();
+		for ($index=$ipv6Index; $index<10; ++$index) $this->ipv6QoS[$index]->init_data();
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		for ($index=0; $index<MAX_QOS; ++$index) {
+			SetData($this->ipv4QoS[$index]->dataInfo, $this->ipv4QoS[$index]->payload, $dataArray['IPv4QoS'.$index]);
+			SetData($this->ipv6QoS[$index]->dataInfo, $this->ipv6QoS[$index]->payload, $dataArray['IPv6QoS'.$index]);
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->ipv4QoS, MAX_QOS).GetPayloads($this->ipv6QoS, MAX_QOS).MakePayload($this->dataInfo);
+	}
+}
+
+
+class QoSIPv4Address
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A16'),
+										'Prefix' => array('value'=>32, 'type'=>'i1'),
+										'DSCP'	=> array('value'=>63, 'type'=>'i1'));
+	}
+
+	function init_data()
+	{
+		$this->dataInfo = array(	'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A16'),
+										'Prefix' => array('value'=>32, 'type'=>'i1'),
+										'DSCP'	=> array('value'=>63, 'type'=>'i1'));
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+class QoSIPv6Address
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A40'),
+										'Prefix' => array('value'=>128, 'type'=>'i1'),
+										'DSCP'	=> array('value'=>63, 'type'=>'i1'));
+	}
+
+	function init_data()
+	{
+		$this->dataInfo = array(	'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A40'),
+										'Prefix' => array('value'=>128, 'type'=>'i1'),
+										'DSCP'	=> array('value'=>63, 'type'=>'i1'));
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+?>

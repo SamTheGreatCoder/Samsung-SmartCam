@@ -1,0 +1,625 @@
+<?php
+
+define('SIZE_APPNAME',		60);
+define('SIZE_APPVERSION',	8);
+define('SIZE_SDKVERSION',	8);
+define('MAX_SDK_RESULT',	128);
+
+class SDKInfoRequest
+{
+	public	$payload;
+	public 	$dataInfo;
+	public  $headerInfo;
+
+	public  $sdk_app;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_SDK_SEARCH_DETAIL, 'Action'=>$_action);
+
+		switch($_action) 
+                {
+        	        case ACTION_GET_ALL:{
+        	        	error_log("in sdk.class action is ACTION_GET_ALL");
+        	        	$this->dataInfo 	= array('max_apps_count'	=> array('value'=>0, 'type'=>'i1'),
+												   'sdk_version'	=> array('value'=>0, 'type'=>'A'.SIZE_SDKVERSION));
+        	        }break;
+        	        case ACTION_GET:{
+        	        	error_log("in sdk.class action is ACTION_GET");
+        	        	$this->dataInfo	  = 	array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+        	        }break;
+
+                }
+	}
+	function SetHeaderCommand($_command)
+	{
+		$this->headerInfo['Command'] = $_command;
+	}
+	function SetCGIPayload($_maxValue = MAX_SDK_RESULT)
+	{
+
+	}
+	function XMLtoArray($_menu)
+	{
+		error_log("XMLtoArray from WS to MS");
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+	function PayloadToArray($_payload)
+	{
+        	switch($this->headerInfo['Action'])
+                {
+                    case ACTION_GET_ALL:
+                    {
+                        $dataArray = unpack(MakeDataFormat($this->dataInfo)."c*", $_payload);
+        		$this->dataInfo['max_apps_count']['value'] = $dataArray['max_apps_count'];
+        		$this->dataInfo['sdk_version']['value'] = $dataArray['sdk_version'];
+        		$resultCount = $dataArray['max_apps_count'];
+        		//error_log("max_apps_count ".$resultCount);
+        		$this->sdk_app = array();
+        		for ($index=0; $index<$resultCount; ++$index) 
+                        {
+                        	$this->sdk_app[$index] = new SDKAppConfiguration();
+        		}
+        		$unpackFormat = MakeDataFormat($this->dataInfo);
+                        for ($index=0; $index<$resultCount; ++$index)
+        		{
+        			$unpackFormat .= 'A'.$this->sdk_app[$index]->payloadLength.'sdk_app'.$index."/";
+        		}
+        		$dataArray = unpack($unpackFormat, $_payload);
+        		for ($index=0; $index<$resultCount; ++$index)
+        		{
+        			$this->sdk_app[$index]->UnpackData($dataArray['sdk_app'.$index]);
+        		}
+                    }   break;
+        
+        	    case ACTION_GET:
+        	    {
+                               $this->sdk_app = new SDKAppConfiguration();
+        		       $this->sdk_app->UnpackData($_payload);
+                    }   break;
+                }
+	}
+	function SendResponse()
+	{
+	    switch($this->headerInfo['Action'])
+	    {
+	        case ACTION_GET_ALL:{					
+		    $msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+		    $msg .= '<AppDetails>'."\n";
+		    for ($index=0; $index < $this->dataInfo['max_apps_count']['value']; $index++) {
+		        $AppStatus_Val = $this->sdk_app[$index]->dataInfo['app_status']['value'];
+			$Raw_AppName = $this->sdk_app[$index]->dataInfo['app_name']['value'];
+			$AppName = $Raw_AppName;
+			$InstalledDate = $this->sdk_app[$index]->dataInfo['installed_date']['value'];
+			$Version = $this->sdk_app[$index]->dataInfo['app_version']['value'];
+			$Version = trim($Version);
+			$Priority =  $this->sdk_app[$index]->dataInfo['app_priority']['value'];
+			$AutoStart = $this->sdk_app[$index]->dataInfo['app_is_auto_start']['value'];
+					
+            $msg .= '<AppDetail>'."\n";
+			$msg .= '<slNo>'.stripslashes(trim($index+1)).'</slNo>'."\n";		
+			$msg .= '<appName>'.stripslashes(trim($Raw_AppName)).'</appName>'."\n";
+			$msg .= '<InstalledDate>'.(strtotime($InstalledDate)).'</InstalledDate>'."\n";
+			$msg .= '<Version>'.$Version.'</Version>'."\n";
+			$msg .= '<Priority>'.$Priority.'</Priority>'."\n";
+			$msg .= '<AppStatus>'.$AppStatus_Val.'</AppStatus>'."\n";
+			$msg .= '<AutoStart>'.$AutoStart.'</AutoStart>'."\n";
+			$msg .= '</AppDetail>'."\n";
+		    }
+		    $msg .= '</AppDetails>';
+		    header('Content-Type: text/xml; charset=utf-8');
+		    header('Content-Length: '.strlen($msg));
+		    echo $msg;
+		    exit;
+                } break;
+	    }
+	}
+}
+
+class SDKAppConfiguration
+{
+	public $payload;
+	public $dataInfo;
+	public $payloadLength;
+
+	function __construct()
+	{
+		$this->dataInfo = array( 'app_name'			=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+      			                 'app_status'			=> array('value'=>'', 'type'=>'i1'),
+      			                 'app_version'			=> array('value'=>'', 'type'=>'A'.SIZE_APPVERSION),
+      			                 'app_permissions'		=> array('value'=>'', 'type'=>'i1'),
+      			                 'app_is_auto_start'		=> array('value'=>'', 'type'=>'i1'),
+      			                 'app_priority'			=> array('value'=>'', 'type'=>'i1'),
+      			                 'installed_date'		=> array('value'=>'', 'type'=>'A40'));
+
+		$this->payloadLength	= GetDataInfoLength($this->dataInfo);  //error_length
+	}
+
+	function UnpackData($_dataArray)
+	{
+		//error_log("_dataArray".$_dataArray);
+		$temp_dataformat = MakeDataFormat($this->dataInfo);
+		//error_log("temp_dataformat ".$temp_dataformat);
+		$_dataArray = unpack($temp_dataformat, $_dataArray);
+
+		$this->dataInfo['app_name']['value']		= $_dataArray['app_name'];
+		$this->dataInfo['app_status']['value']		= $_dataArray['app_status'];
+		$this->dataInfo['app_version']['value']		= $_dataArray['app_version'];
+		$this->dataInfo['app_permissions']['value']	= $_dataArray['app_permissions'];
+		$this->dataInfo['app_is_auto_start']['value']	= $_dataArray['app_is_auto_start'];
+		$this->dataInfo['app_priority']['value']	= $_dataArray['app_priority'];
+		$this->dataInfo['installed_date']['value']	= $_dataArray['installed_date'];
+		//error_log("app_name is ".$this->dataInfo['app_name']['value']);
+	}
+}
+
+class SDK
+{
+	public $payload;
+	public $headerInfo;
+	public $sdk_app_upload_response;
+	public $sdk_app_get_health_response;
+
+	function __construct($_action=ACTION_ADD)
+	{
+		error_log("Construct Data in SDK class");
+		$this->headerInfo = 	array( 	'Command'=>CMD_OPENSDK_APP, 'Action'=>$_action);
+
+		switch($_action) 
+                {
+                        case ACTION_ADD:{
+                        	error_log("in sdk.class action is ACTION_ADD");
+                        	$this->dataInfo	  = 	array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+                        		                       'AppUploadPath'=> array('value'=>'', 'type'=>'A200'));
+                        	$this->sdk_app_upload_response = new SDK_Upload_Results();
+                        		}break;
+                        case ACTION_SET: {
+                        	error_log("in sdk.class action is ".$_action);
+                        	$this->dataInfo	  = 	array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+								'RetainSettings'=> array('value'=>'', 'type'=>'A2'));
+                                        }break;
+			   case ACTION_REMOVE: case ACTION_START: case ACTION_STOP:{
+                        	error_log("in sdk.class action is ".$_action);
+                        	$this->dataInfo	  = 	array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+                                        }break;
+                        case ACTION_GET:{
+                        	error_log("in sdk.class action is ".$_action);
+                        	$this->dataInfo	  = 	array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+                        	$this->sdk_app_get_health_response = new SDK_Get_Health_Results();
+                                        }break;
+                }
+	}
+
+	function XMLtoArray($_menu)
+	{
+		error_log("XMLtoArray". $GLOBALS['XMLArray']);
+		//error_log("payload 
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+	function PayloadToArray($_payload)
+	{
+		error_log("Payload toArray in sdk Class");
+		switch($this->headerInfo['Action'])
+                {
+                    case ACTION_ADD:
+                                   $this->sdk_app_upload_response->UnpackData($_payload);
+                                   break;
+
+                    case ACTION_GET:
+                                   $this->sdk_app_get_health_response->UnpackHealthData($_payload);
+                                   break;
+                }
+	}
+
+	function SendResponse()
+	{
+		switch($this->headerInfo['Action'])
+		{
+                    case ACTION_ADD:{
+			$app_permissions = $this->sdk_app_upload_response->dataInfo['app_permissions']['value'];
+			$app_upgrade = $this->sdk_app_upload_response->dataInfo['app_upgrade']['value'];
+			$is_debug_enable= $this->sdk_app_upload_response->dataInfo['is_debug_enable']['value'];
+			$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+			$msg .= '<AppUpgrade>'."\n";
+			$msg .= '<AddResult>'.$app_permissions.'</AddResult>'."\n";
+			$msg .= '<Upgrade>'.$app_upgrade.'</Upgrade>'."\n";
+			$msg .= '<Debug>'.$is_debug_enable.'</Debug>'."\n";
+			$msg .= '</AppUpgrade>'."\n";
+			header('Content-Type: text/xml; charset=utf-8');
+			header('Content-Length: '.strlen($msg));
+			echo $msg;
+			exit;
+                    } break;
+
+                    case ACTION_GET:{
+			$app_name = $this->sdk_app_get_health_response->dataInfo['app_name']['value'];
+			$app_cpu_usage_percent = $this->sdk_app_get_health_response->dataInfo['app_cpu_usage_percent']['value'];
+			$app_mem_usage_percent = $this->sdk_app_get_health_response->dataInfo['app_mem_usage_percent']['value'];
+			$threads_count = $this->sdk_app_get_health_response->dataInfo['threads_count']['value'];
+			$running_duration_secs = $this->sdk_app_get_health_response->dataInfo['running_duration_secs']['value'];
+			
+			$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+			$msg .= '<AppHealth>'."\n";
+			$msg .= '<appName>'.$app_name.'</appName>'."\n";
+			$msg .= '<cpuPercent>'.$app_cpu_usage_percent.'</cpuPercent>'."\n";
+			$msg .= '<memPercent>'.$app_mem_usage_percent.'</memPercent>'."\n";
+			$msg .= '<threadsCnt>'.$threads_count.'</threadsCnt>'."\n";
+			$msg .= '<Duration>'.$running_duration_secs.'</Duration>'."\n";
+			$msg .= '</AppHealth>'."\n";
+			header('Content-Type: text/xml; charset=utf-8');
+			header('Content-Length: '.strlen($msg));
+			echo $msg;
+			exit;
+                    } break;
+                    
+                    default :{
+			$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+			$msg .= '<Results>'.'OK'.'</Results>'."\n";
+			header('Content-Type: text/xml; charset=utf-8');
+			header('Content-Length: '.strlen($msg));
+			echo $msg;
+			exit;
+                    } break;
+                }
+	}
+}
+
+class SDK_Upload_Results
+{
+	public $payload;
+	public $dataInfo;
+	function __construct()
+	{
+		error_log("Construct Data in SDK_Upload_Results class");
+
+		$this->dataInfo	  = 	array( 	'app_permissions'	=> array('value'=>0, 'type'=>'I1'),
+										'app_upgrade'	=> array('value'=>0, 'type'=>'I1'),
+										'is_debug_enable' => array('value'=>0,'type'=>'I1'));
+	}
+	function UnpackData($_payload)
+	{
+		//error_log("Payload toArray in sdk upload results Class".$_payload);
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class SDK_Get_Health_Results
+{
+	public $payload;
+	public $dataInfo;
+	function __construct()
+	{
+		error_log("Construct Data in SDK_Get_Health_Results class");
+
+		$this->dataInfo	  = 	array(	'app_name'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+						'app_cpu_usage_percent'	=> array('value'=>0, 'type'=>'I1'),
+                                                'app_mem_usage_percent'	=> array('value'=>0, 'type'=>'I1'),
+                                                'threads_count'	        => array('value'=>0, 'type'=>'I1'),
+                                                'running_duration_secs' => array('value'=>0, 'type'=>'I1')
+                                              );
+		$this->payloadLength	= GetDataInfoLength($this->dataInfo);
+	}
+        function UnpackHealthData($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+	function UnpackData($_dataArray)
+	{
+		//error_log("Payload toArray in sdk upload results Class".$_payload);
+		//SetData($this->dataInfo, $this->payload, $_payload);
+		
+		//error_log("_dataArray".$_dataArray);
+		$temp_dataformat = MakeDataFormat($this->dataInfo);
+		//error_log("temp_dataformat ".$temp_dataformat);
+		$_dataArray = unpack($temp_dataformat, $_dataArray);
+
+		$this->dataInfo['app_name']['value']		  = $_dataArray['app_name'];
+		$this->dataInfo['app_cpu_usage_percent']['value'] = $_dataArray['app_cpu_usage_percent'];
+		$this->dataInfo['app_mem_usage_percent']['value'] = $_dataArray['app_mem_usage_percent'];
+		$this->dataInfo['threads_count']['value']	  = $_dataArray['threads_count'];
+		$this->dataInfo['running_duration_secs']['value'] = $_dataArray['running_duration_secs'];
+	}
+}
+
+class SDK_Task_Manager
+{
+	public $payload;
+	public $headerInfo;
+	public $sdk_taskManager;
+	
+	function __construct($_action=ACTION_GET)
+	{
+		error_log("Construct Data in SDK_Task_Manager Class");
+		$this->headerInfo = 	array( 	'Command'=>CMD_SDK_TASK_MANAGER, 'Action'=>$_action);
+		
+		switch($_action) 
+        {
+			case ACTION_GET:{
+            error_log("in sdk.class TaskManager action is ".$_action);
+            $this->dataInfo 	= array('max_apps_count'	=> array('value'=>0, 'type'=>'i1'));
+			//$this->dataInfo 	= array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+            }break;
+		}
+	}
+	
+	function XMLtoArray($_menu)
+	{
+		error_log("XMLtoArray". $GLOBALS['XMLArray']);
+		//error_log("payload 
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+	
+	function PayloadToArray($_payload)
+	{
+		error_log("Payload toArray in sdk Class");
+		switch($this->headerInfo['Action'])
+		{
+			case ACTION_GET:
+			    $this->dataInfo 	= array('max_apps_count'	=> array('value'=>0, 'type'=>'i1'),
+											'sys_memory'		=> array('value'=>0, 'type'=>'i1'),
+											'sys_cpu'			=> array('value'=>0, 'type'=>'i1'));
+				
+				$dataArray = unpack(MakeDataFormat($this->dataInfo)."c*", $_payload);
+				$this->dataInfo['max_apps_count']['value'] = $dataArray['max_apps_count'];
+				$this->dataInfo['sys_memory']['value'] = $dataArray['sys_memory'];
+				$this->dataInfo['sys_cpu']['value'] = $dataArray['sys_cpu'];
+				$resultCount = $dataArray['max_apps_count'];
+				$this->sdk_taskManager = array();
+				for ($index=0; $index<$resultCount; ++$index) 
+				{
+					$this->sdk_taskManager[$index] = new SDK_Get_Health_Results();
+					error_log("Instance creation".$index);
+				}
+				
+				$unpackFormat = MakeDataFormat($this->dataInfo);
+				for ($index=0; $index<$resultCount; ++$index)
+				{
+					$unpackFormat .= 'A'.$this->sdk_taskManager[$index]->payloadLength.'sdk_taskManager'.$index."/";
+				}
+				$dataArray = unpack($unpackFormat, $_payload);
+				for ($index=0; $index<$resultCount; ++$index)
+				{
+					$this->sdk_taskManager[$index]->UnpackData($dataArray['sdk_taskManager'.$index]);
+				}
+				break;
+            	}
+		error_log("End of Payload to array ");
+	}
+	function SendResponse()
+	{
+		switch($this->headerInfo['Action'])
+		{
+			case ACTION_GET:{
+				error_log("start of response");
+			
+				$app_cnt = $this->dataInfo['max_apps_count']['value'];
+				$system_mem = $this->dataInfo['sys_memory']['value'];
+				$system_cpu = $this->dataInfo['sys_cpu']['value'];
+				
+				//error_log("VVVVVV Appcount".$app_cnt);
+				
+				$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+				$msg .= '<AppHealth>'."\n";
+				$msg .= '<appCount>'.$app_cnt.'</appCount>'."\n";
+				$msg .= '<sysmem>'.$system_mem.'</sysmem>'."\n";
+				$msg .= '<syscpu>'.$system_cpu.'</syscpu>'."\n";
+				for ($index=0; $index < $app_cnt; $index++)
+				{
+					$app_name = $this->sdk_taskManager[$index]->dataInfo['app_name']['value'];
+					$app_cpu_usage_percent = $this->sdk_taskManager[$index]->dataInfo['app_cpu_usage_percent']['value'];
+					$app_mem_usage_percent = $this->sdk_taskManager[$index]->dataInfo['app_mem_usage_percent']['value'];
+					$threads_count = $this->sdk_taskManager[$index]->dataInfo['threads_count']['value'];
+					$running_duration_secs = $this->sdk_taskManager[$index]->dataInfo['running_duration_secs']['value'];
+					
+              				$msg .= '<AppDetails>'."\n";
+					$msg .= '<appName>'.stripslashes(trim($app_name)).'</appName>'."\n";
+					$msg .= '<cpuPercent>'.$app_cpu_usage_percent.'</cpuPercent>'."\n";
+					$msg .= '<memPercent>'.$app_mem_usage_percent.'</memPercent>'."\n";
+					$msg .= '<threadsCnt>'.$threads_count.'</threadsCnt>'."\n";
+					$msg .= '<Duration>'.$running_duration_secs.'</Duration>'."\n";
+					$msg .= '</AppDetails>'."\n";
+				}
+				$msg .= '</AppHealth>'."\n";
+				header('Content-Type: text/xml; charset=utf-8');
+				header('Content-Length: '.strlen($msg));
+				echo $msg;
+				exit;
+            } break;
+		}
+	}
+}
+
+class SDK_App_Attributes
+{
+	public $payload;
+	public $headerInfo;
+	public $sdk_app_attributes_result;
+
+	function __construct($_action=ACTION_GET)
+	{
+		error_log("Construct Data in SDK_App_Attributes class");
+		$this->headerInfo = 	array( 	'Command'=>CMD_SDK_APP_ATTRIBUTES, 'Action'=>$_action);
+
+		switch($_action) 
+                {
+                        case ACTION_GET:{
+                        	error_log("in sdk.class action is ACTION_GET");
+                        	$this->dataInfo	  = 	array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+                        	$this->sdk_app_attributes_result = new SDK_App_AttributesResults();                     		
+                        	
+                        		}break;
+                        
+                        case ACTION_SET:{
+                        	error_log("in sdk.class action is ACTION_SET");
+                        	$this->dataInfo	  = 	array( 'AppName'	=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+							       'IsAutoStart'	=> array('value'=>'', 'type'=>'i1'),
+							       'Priority'	=> array('value'=>'', 'type'=>'i1'));
+      			         }break;
+                }
+	}
+	
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+	function PayloadToArray($_payload)
+	{
+		error_log("Payload toArray in SDK_App_Attributes Class");
+		if ($this->headerInfo['Action'] == ACTION_GET){
+			$this->sdk_app_attributes_result->UnpackData($_payload);
+		}
+	}
+
+	function SendResponse()
+	{
+		switch($this->headerInfo['Action'])
+                {
+                        case ACTION_GET:{
+              			$app_name = $this->sdk_app_attributes_result->dataInfo['app_name']['value'];
+              			$app_is_auto_start = $this->sdk_app_attributes_result->dataInfo['app_is_auto_start']['value'];
+              			$app_priority = $this->sdk_app_attributes_result->dataInfo['app_priority']['value'];
+
+              			$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+              			$msg .= '<GetSDKAppAttributesResult>'."\n";
+              			$msg .= '<AppName>'.$app_name.'</AppName>'."\n";
+              			$msg .= '<IsAutoStart>'.$app_is_auto_start.'</IsAutoStart>'."\n";
+              			$msg .= '<Priority>'.$app_priority.'</Priority>'."\n";
+              			$msg .= '</GetSDKAppAttributesResult>'."\n";
+              			header('Content-Type: text/xml; charset=utf-8');
+              			header('Content-Length: '.strlen($msg));
+              			echo $msg;
+              			exit;
+              		}break;
+
+                        case ACTION_SET:{
+              			$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+              			$msg .= '<SetAttributesResult>'."\n";
+              			$msg .= 'Success'."\n";
+              			$msg .= '</SetAttributesResult>'."\n";
+              			header('Content-Type: text/xml; charset=utf-8');
+              			header('Content-Length: '.strlen($msg));
+              			echo $msg;
+              			exit;
+      			}break;
+                 }
+	}
+
+}
+
+class SDK_App_AttributesResults{
+	public $payload;
+	public $dataInfo;
+	function __construct()
+	{
+		error_log("Construct Data in SDK_App_AttributesResults class");
+		$this->dataInfo	  = 	array( 'app_name'		=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+      			                       'app_is_auto_start'	=> array('value'=>'', 'type'=>'i1'),
+      			                       'app_priority'		=> array('value'=>'', 'type'=>'i1'));
+	}
+	function UnpackData($_payload)
+	{
+		//error_log("Payload toArray in SDK_App_AttributesResults results Class".$_payload);
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class SDK_DebugConfig{
+	public $payload;
+	public $headerInfo;
+	public $dataInfo;
+	
+	function __construct($_action=ACTION_SET)
+	{
+		error_log("Construct Data in SDK class");
+		$this->headerInfo = 	array( 'Command'	=>CMD_OPENSDK_APP_DEBUG, 'Action'=>$_action);
+		$this->dataInfo	  = 	array( 'enable'		=> array('value'=>'', 'type'=>'i1'),
+					       'viewer_ip'	=> array('value'=>'', 'type'=>'A144'),
+                        		       'viewer_port'	=> array('value'=>'', 'type'=>'i1'),
+                        		       'app_name'	=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+	}
+
+	function XMLtoArray($_menu=CMD_OPENSDK_APP_DEBUG)
+	{
+		error_log("XMLtoArray". $GLOBALS['XMLArray']);
+		//error_log("payload 
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+	function PayloadToArray($_payload)
+	{
+		error_log("Payload toArray in SDK_DebugConfig Class");
+		switch($this->headerInfo['Action'])
+        {
+            case ACTION_GET:
+              // $this->sdk_app_get_health_response->UnpackData($_payload);
+               break;
+        }
+	}
+
+	function SendResponse()
+	{
+		
+	}
+	
+}
+class SDK_RemoteDebug{
+	public $payload;
+	public $headerInfo;
+	public $dataInfo;
+	public $remote_debug_result;
+	function __construct($_action=ACTION_START)
+	{
+		$this->headerInfo = 	array( 'Command'	=>CMD_OPENSDK_APP_DEBUG, 'Action'=>$_action);
+		$this->dataInfo	  = 	array( 'AppName'=> array('value'=>'', 'type'=>'A'.SIZE_APPNAME),
+										'port'		=> array('value'=>'', 'type'=>'i1'),
+										'viewer_ip'	=> array('value'=>'', 'type'=>'A16')
+									 );
+		$this->remote_debug_result = new SDK_RemoteDebug_Result();
+	}
+	
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+	function PayloadToArray($_payload)
+	{
+		switch($this->headerInfo['Action'])
+        {
+            case ACTION_START:
+               $this->remote_debug_result->UnpackData($_payload);
+               break;
+        }
+	}
+
+	function SendResponse()
+	{
+		switch($this->headerInfo['Action'])
+		{
+						
+                        case ACTION_START:{
+				$errorCode = $this->remote_debug_result->dataInfo['error_code']['value'];
+				$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+				$msg .= '<StartGDBServerResult>'."\n";
+				$msg .= '<Result>'.$errorCode.'</Result>'."\n";
+				$msg .= '</StartGDBServerResult>'."\n";
+				header('Content-Type: text/xml; charset=utf-8');
+				header('Content-Length: '.strlen($msg));
+				echo $errorCode;
+				exit;
+			}break; 
+		}
+	}
+}
+class SDK_RemoteDebug_Result{
+	public $payload;
+	public $dataInfo;
+	function __construct()
+	{
+		$this->dataInfo	  = 	array( 'error_code'	=>array('value'=>'', 'type'=>'A'.SIZE_APPNAME));
+		
+	}
+	function UnpackData($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+?>

@@ -1,0 +1,46 @@
+#!/bin/sh
+
+# callsyntax: $0 $1=INTERFACE
+
+INTERFACE=$1
+SERVICE_NAME="scanning"
+SERVICE_PATH="/tmp/$SERVICE_NAME"
+LOG_PREFIX="$SERVICE_NAME($INTERFACE):"
+NOTIFY_PATH="$SERVICE_PATH/$INTERFACE"
+
+if [ ! -d $SERVICE_PATH ]; then
+    mkdir $SERVICE_PATH
+fi
+
+run() {
+    ifconfig $INTERFACE up
+    LIST="$SERVICE_PATH/$INTERFACE.lst"
+    if [ -f $LIST ]; then
+        rm $LIST
+    fi
+    iwlist $INTERFACE scanning > $LIST
+    case $? in
+        0)
+            echo -e "\033[32m$LOG_PREFIX done\033[0m"
+            network_notifier $NOTIFY_PATH "done"
+            ;;
+        255)
+            echo -e "\033[31m$LOG_PREFIX busy\033[0m"
+            sleep 5
+            network_notifier $NOTIFY_PATH "busy"
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            sleep 5
+            network_notifier $NOTIFY_PATH "failed"
+            ;;
+    esac
+}
+
+if [ -z $INTERFACE ]; then
+    echo -e "Usage: $0 interface"
+    exit 1
+fi
+
+run
+exit $?

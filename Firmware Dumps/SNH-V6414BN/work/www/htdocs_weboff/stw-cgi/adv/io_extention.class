@@ -1,0 +1,53 @@
+<?php
+
+class IoLED
+{
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+	public	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo		= array('Command'=>CMD_LED, 'Action'=>$_action);
+		$this->dataInfo			= array('Enabled' => array('value'=>0, 'type'=>'c1'));
+		$this->unpackFormat	= 	MakeDataFormat($this->dataInfo);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+class IoLullaby
+{
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+	public	$unpackFormat;
+
+	function __construct($_action=ACTION_START)
+	{
+		$this->headerInfo		= array('Command'=>CMD_LULLABY, 'Action'=>$_action);
+		$this->dataInfo			= array('fileName' => array('value'=>'', 'type'=>'A64'));
+		$this->unpackFormat	= 	MakeDataFormat($this->dataInfo);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+?>

@@ -1,0 +1,52 @@
+<?php
+define('MAX_RELAY',	4);
+
+class RelayOutputConfiguration
+{
+	public	$relayOutput;	
+	public	$payload;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->headerInfo	= array('Command'=>CMD_RELAY_OUTPUT_CONFIGURATION, 'Action'=>$_action);
+		for ($index=0; $index<MAX_RELAY; ++$index) {
+			$this->relayOutput[$index] = new RelayOutputSetting();
+		}	
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$relayIndex = 0;
+		foreach ($GLOBALS['XMLArray'] as $data) {		
+			SetData($this->relayOutput[$relayIndex]->dataInfo, $this->relayOutput[$relayIndex]->payload, $data);
+			$relayIndex++;
+		}
+		$this->payload = GetPayloads($this->relayOutput, MAX_RELAY);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat = MakeUnpackFormat('relayOutput', GetDataInfoLength($this->relayOutput[0]->dataInfo), MAX_RELAY);
+		$dataArray = unpack($unpackFormat, $_payload);
+		for ($index=0; $index<MAX_RELAY; ++$index)
+		{
+			SetData($this->relayOutput[$index]->dataInfo, $this->relayOutput[$index]->payload, $dataArray['relayOutput'.$index]);
+		}
+	}
+}
+
+class RelayOutputSetting
+{
+	public 	$payload;
+	public	$dataInfo;
+	
+	function __construct()
+	{
+		$this->dataInfo	 	= array(	'Token' 		=> array('value'=>'', 'type'=>'A64'),
+											'Mode' 		=> array('value'=>0, 'type'=>'c1'),
+											'Duration'	=> array('value'=>0, 'type'=>'i1'),
+											'IdleState' => array('value'=>0, 'type'=>'c1'));
+	}
+}
+?>

@@ -1,0 +1,140 @@
+<?php
+define('MAX_ALARMOUT',						4);
+
+class RelayOutputStates
+{
+	public	$relayOutputState;
+
+	public 	$payload;
+	public 	$headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->headerInfo = array('Command'=>CMD_RELAY_OUTPUT_STATE, 'Action'=>$_action);
+
+		for ($index=0; $index<MAX_ALARMOUT; ++$index)
+		{
+			$this->relayOutputState[$index] = new RelayOutputState();
+		}
+		$this->unpackFormat = MakeUnpackFormat('relayOutputState', GetDataInfoLength($this->relayOutputState[0]->dataInfo), MAX_ALARMOUT);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		for ($index=0; $index<MAX_ALARMOUT; ++$index)
+		{
+			SetData($this->relayOutputState[$index]->dataInfo, $this->relayOutputState[$index]->payload, $dataArray['relayOutputState'.$index]);
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->relayOutputState, MAX_ALARMOUT);
+	}
+}
+
+class RelayOutputState
+{
+	public 	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_RELAY_OUTPUT_STATE, 'Action'=>$_action);
+		$this->dataInfo	 	= array(	'Token'			=> array('value'=>'', 'type'=>'A64' ),
+											'LogicalState' => array('value'=>0, 'type'=>'c1'));
+		if ($_action == ACTION_GET) {
+			$this->payload 	= pack('i1', 0);
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class PTZInstantAF
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->headerInfo = array( 'Command'=>CMD_PTZ_INSTANT_AF, 'Action'=>ACTION_START);
+		$this->dataInfo		= array( 'Index'=> array('value'=>0, 'type'=>'i1'));
+
+		$this->payload 	= pack('i1', 0);
+
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+
+class PTZAuxiliary
+{
+	public	$payload;
+	public	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_PTZ_AUXILIARY, 'Action'=>$_action);
+		$this->dataInfo		= array( 'Index'		=>array('value'=>0, 'type'=>'i1'),
+											'Value'		=>array('value'=>0, 'type'=>'i1'),
+											'Name'		=>array('value'=>'', 'type'=>'A64'),
+											'Reserved'	=>array('value'=>'',	'type'=>'A64'));
+
+		if ($this->headerInfo['Action'] == ACTION_GET)
+		{
+			$this->payload = pack('i1', $this->dataInfo['Index']['value']);
+		}
+	}
+
+	function XMLtoArray($_action)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class ManualRecording
+{
+	public	$payload;
+	public	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_MANUAL_RECORDING, 'Action'=>$_action);
+		$this->dataInfo		= array( 'Type'		=>array('value'=>0, 'type'=>'c1'),
+											'State'	=>array('value'=>0, 'type'=>'c1'));
+	}
+
+	function XMLtoArray($_action)
+	{
+		$this->payload = '';
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+?>

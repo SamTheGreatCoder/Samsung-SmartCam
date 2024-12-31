@@ -1,0 +1,97 @@
+#!/bin/sh
+
+check_pid="$(ps x | grep NetworkManager | awk '/usr/ {print $1}')"
+kill $check_pid
+
+echo "Ambas2l Board setting"
+amba_debug -w 0xe8010018 -d 0x2d800
+amba_debug -w 0xe8010004 -d 0x774  
+amba_debug -w 0xe8010028 -d 0x64   
+amba_debug -w 0xe8010000 -d 0x64   
+amba_debug -r 0xe8010000;        
+#echo 36 > /sys/class/gpio/export
+#echo out > /sys/class/gpio/gpio36/direction
+
+echo "Remove Core Dump"
+rm /var/lib/systemd/coredump/core*
+rm /var/lib/systemd/coredump/.core*
+
+#system ctrl stop
+systemctl stop systemd-tmpfiles-clean.timer
+systemctl stop telnet.socket    
+
+/work/app/env-app | grep bootargs > /tmp/cmdline
+/work/app/hwmacchanger
+
+
+if [ ! -d /mnt/mmcblk0p1 ] ; then
+  mkdir -p /mnt/mmcblk0          
+  mkdir -p /mnt/mmcblk0p1        
+fi                               
+
+echo "setting up environment variables"
+export XMPP_DOMAIN="xmpp.samsungsmartcam.com"
+export XMPP_SERVER="xmpp.samsungsmartcam.com"
+export APNSVRADDR="http://www.samsungsmartcam.com/web/event.stw"
+export STRICT_CERT="true"
+
+cd /work/app
+
+echo "bsp no execute ptb_backup.sh"
+#echo "back up ptb area"
+#./ptb_backup.sh &
+
+./system_exec &          
+./mainServer &  
+
+echo "Ambarella mainServer Start!"
+
+echo "starting up the ssh program..."
+/etc/ssh.sh
+
+sleep 10
+
+CUSTOM_MTD_BLOCK=ubi2_0
+export CUSTOM_MNT_POINT=/mnt/custom
+export CUSTOM_WEB_HOME=$CUSTOM_MNT_POINT/web-base
+CUSTOM_WEB_HOME_ALIAS=/work/www/htdocs/custom
+
+mkdir $CUSTOM_MNT_POINT
+ubiattach /dev/ubi_ctrl -m 9
+ubimkvol /dev/ubi2 -N usr_a -m
+mount -t ubifs $CUSTOM_MTD_BLOCK $CUSTOM_MNT_POINT
+
+#if [ ! -h $CUSTOM_WEB_HOME_ALIAS ] && [ -d $CUSTOM_WEB_HOME ]; then
+#    echo $CUSTOM_WEB_HOME alias $CUSTOM_WEB_HOME_ALIAS
+#    ln -s $CUSTOM_WEB_HOME $CUSTOM_WEB_HOME_ALIAS   
+#fi
+
+
+if [ ! -e /mnt/custom/web-base ]; then
+  echo "Copy custom base Directory..."
+  cp -rf /work/custom/web-base /mnt/custom/.
+  cp -f /work/custom/custom-lighttpd.conf /mnt/custom/.
+  cp -f /work/custom/start.sh /mnt/custom/.
+fi
+
+if [ ! -h $CUSTOM_WEB_HOME_ALIAS ] && [ -d $CUSTOM_WEB_HOME ]; then
+    echo $CUSTOM_WEB_HOME alias $CUSTOM_WEB_HOME_ALIAS
+    ln -s $CUSTOM_WEB_HOME $CUSTOM_WEB_HOME_ALIAS   
+fi
+  
+if [ -e /work/custom/iwatch/install.sh ]; then
+  echo "Install..."
+  /work/custom/iwatch/install.sh
+  sync
+fi
+
+echo "Restart Web server..."
+killall -9 lighttpd
+/work/daemon/lighttpd -m /usr/lib/lighttpd/ -f /tmp/daemon/cfg/lighttpd.conf &
+sleep 1
+
+if [ -e $CUSTOM_MNT_POINT/iwatch/scripts/start.sh ]; then
+    echo starting up the custom application stacks
+    $CUSTOM_MNT_POINT/iwatch/scripts/start.sh &
+fi
+

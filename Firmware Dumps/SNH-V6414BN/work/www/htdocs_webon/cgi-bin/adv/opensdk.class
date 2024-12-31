@@ -1,0 +1,60 @@
+<?php
+require_once ('event_common.class');
+
+class OpenSDKConfiguration
+{
+	public 	$schedule;
+	public	$action;
+
+	public 	$payload;
+	public	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array('Command'=>CMD_OPENSDK_APP_EVENT, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Enabled' 	=> array('value'=>0, 'type'=>'c1'),
+											'Reserved' 	=> array('value'=>'', 'type'=>'A128'));
+		$this->schedule 	= new EventSchedule();
+		$this->action 		= new EventAction();
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach($GLOBALS['XMLArray'] as $name=>$data) {
+			if 		($name == 'Schedule')	$this->schedule->ParserXML($data);
+			else if 	($name == 'Action')	$this->action->ParserXML($data);
+			else									$this->dataInfo[$name]['value'] = $data;
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat = 'c1Enabled/'.'A'.$this->schedule->payloadLength.'Schedule/A'.$this->action->payloadLength.'Action/A128Reserved';
+		$dataArray = unpack($unpackFormat, $_payload);
+		$this->dataInfo['Enabled']['value'] = $dataArray['Enabled'];
+		$this->dataInfo['Reserved']['value'] = $dataArray['Reserved'];
+		$this->schedule->UnpackData($dataArray['Schedule']);
+		$this->action->UnpackData($dataArray['Action']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload =	pack($this->dataInfo['Enabled']['type'], $this->dataInfo['Enabled']['value']).
+								$this->schedule->payload.$this->action->payload.
+								pack($this->dataInfo['Reserved']['type'], $this->dataInfo['Reserved']['value']);
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = '<OpenSDKEvent>'."\r\n";
+		$msg .= "\t".'<Enabled>'.$this->dataInfo['Enabled']['value'].'</Enabled>'."\r\n";
+		$msg .= $this->schedule->GetXMLData($_menu);
+		$msg .= $this->action->GetXMLData($_menu);
+		$msg .= '</OpenSDKEvent>'."\r\n";
+		return $msg;
+	}
+}
+?>

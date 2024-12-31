@@ -1,0 +1,56 @@
+<?php
+require_once ('event_common.class');
+
+class TimeScheduleConfiguration
+{
+	public 	$schedule;
+	public	$action;
+
+	public 	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array(	'Command'=>CMD_TIMER_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Token' 		=> array('value'=>'', 'type'=>'A64'),
+											'Enabled' 	=> array('value'=>0, 'type'=>'c1'),
+											'Interval' 	=> array('value'=>600, 'type'=>'i1'));
+		$this->schedule	 	= new EventSchedule();
+		$this->action	 	= new EventAction();
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach($GLOBALS['XMLArray'] as $name=>$data) {
+			if 		($name == 'Schedule')	$this->schedule->ParserXML($data);
+			else if 	($name == 'Action')	$this->action->ParserXML($data);
+			else									$this->dataInfo[$name]['value'] = trim($data);
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat 	= 	$this->dataInfo['Token']['type'].'Token/'.$this->dataInfo['Enabled']['type'].'Enabled/'.
+								'A'.$this->schedule->payloadLength.'Schedule/'.$this->dataInfo['Interval']['type'].'Interval/'.
+								'A'.$this->action->payloadLength.'Action';
+		$dataArray = unpack($unpackFormat, $_payload);
+		$this->dataInfo['Token']['value'] = $dataArray['Token'];
+		$this->dataInfo['Enabled']['value'] = $dataArray['Enabled'];
+		$this->dataInfo['Interval']['value'] = $dataArray['Interval'];
+		$this->schedule->UnpackData($dataArray['Schedule']);
+		$this->action->UnpackData($dataArray['Action']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload =	pack($this->dataInfo['Token']['type'], $this->dataInfo['Token']['value']).
+								pack($this->dataInfo['Enabled']['type'], $this->dataInfo['Enabled']['value']).
+								$this->schedule->payload.
+								pack($this->dataInfo['Interval']['type'], $this->dataInfo['Interval']['value']).
+								$this->action->payload;
+	}
+}
+?>

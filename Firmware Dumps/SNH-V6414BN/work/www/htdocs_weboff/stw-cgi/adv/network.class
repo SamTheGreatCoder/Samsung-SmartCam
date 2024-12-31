@@ -1,0 +1,1223 @@
+<?php
+
+define('MAX_DNS', 2);
+define('MAX_NTP', 5);
+define('MAX_DDNS', 3);
+define('MAX_IPV4ADDRESS', 1);
+define('MAX_IPV6ADDRESS', 1);
+define('MAX_NETWORK_INTERFACE', 1);
+define('MAX_NETWORK_PROTOCOL', 6);
+define('MAX_IPV4_GATEWAY', 1);
+define('MAX_IPV6_GATEWAY', 1);
+define('MAX_IPV4_IPFILTER', 10);
+define('MAX_IPV6_IPFILTER', 10);
+
+class NetworkConfiguration
+{
+
+    public $hostName;
+    public $dnsInfo;
+    public $interface;
+    public $gateway;
+    public $ipFiltering;
+    public $zeroConf;
+    public $protocol;
+    public $ntpInfo;
+    public $ddnsInfo;
+    public $smtp;
+    public $ftp;
+    public $dataInfo;
+    public $headerInfo;
+    public $payload;
+    public $unpackFormat;
+
+    function __construct($_action = ACTION_GET)
+    {
+        $this->hostName = new HostName();
+        $this->dnsInfo = new DNSInformation();
+        for ($index = 0; $index < MAX_NETWORK_INTERFACE; ++$index)
+        {
+            $this->interface[$index] = new NetworkInterface();
+        }
+        $this->gateway = new NetworkGateway();
+        $this->ipFiltering = new IPAddressFiltering();
+        $this->zeroConf = new ZeroConfiguration();
+        for ($index = 0; $index < MAX_NETWORK_PROTOCOL; ++$index)
+        {
+            $this->protocol[$index] = new NetworkProtocol();
+        }
+        $this->ntpInfo = new NTPInformation();
+        $this->ddnsInfo = new DDNSInformation();
+        $this->smtp = new SMTPSetting();
+        $this->ftp = new FTPSetting();
+
+        $this->headerInfo = array('Command' => CMD_NETWORK_CONFIGURATION, 'Action' => $_action);
+        $this->dataInfo = array('RTSPTimeout' => array('value' => 0, 'type' => 'c1'),
+            'SearchDomain' => array('value' => '', 'type' => 'A64'),
+            'Reserved' => array('value' => '', 'type' => 'A19'));
+
+        $this->unpackFormat = 'A' . GetDataInfoLength($this->hostName->dataInfo) . 'hostName/' .
+            'A' . $this->dnsInfo->payloadLength . 'dnsInfo/' .
+            MakeUnpackFormat('interface', $this->interface[0]->payloadLength, MAX_NETWORK_INTERFACE) .
+            'A' . $this->gateway->payloadLength . 'gateway/' .
+            'A' . $this->ipFiltering->payloadLength . 'ipFiltering/' .
+            'A' . GetDataInfoLength($this->zeroConf->dataInfo) . 'zeroConf/' .
+            MakeUnpackFormat('protocol', GetDataInfoLength($this->protocol[0]->dataInfo), MAX_NETWORK_PROTOCOL) .
+            'A' . $this->ntpInfo->payloadLength . 'ntpInfo/' .
+            'A' . $this->ddnsInfo->payloadLength . 'ddnsInfo/' .
+            'A' . GetDataInfoLength($this->smtp->dataInfo) . 'smtp/' .
+            'A' . GetDataInfoLength($this->ftp->dataInfo) . 'ftp/' .
+            MakeDataFormat($this->dataInfo);
+    }
+
+    function XMLtoArray($_menu)
+    {
+        $xmlArray = $GLOBALS['XMLArray'];
+
+        $index = 0;
+        if ($_menu == 'Interface')
+        {
+            foreach ($xmlArray as $networkData)
+            {
+                if ($networkData->GetName() == 'Interface')
+                {
+                    foreach ($networkData as $data)
+                    {
+                        if ($data->GetName() == 'IPv4Interface')
+                        {
+                            $this->interface[$index]->ipv4AddrConf->ParserXML($data);
+                        }
+                        else if ($data->GetName() == 'IPv6Interface')
+                        {
+                            $this->interface[$index]->ipv6AddrConf->ParserXML($data);
+                        }
+                        $this->interface[$index]->SetPayload();
+                    }
+                    $index++;
+                }
+                else if ($networkData->GetName() == 'Gateway')
+                {
+                    $this->gateway->ParserXML($networkData);
+                }
+                else if ($networkData->GetName() == 'DNS')
+                {
+                    $this->dnsInfo->ParserXML($networkData);
+                }
+            }
+        }
+        else if ($_menu == 'Port')
+        {
+            $portName = array('HTTP' => 0, 'HTTPS' => 1, 'RTSP' => 2, 'VNP' => 3, 'RTP' => 4, 'WebViewer' => 5);
+            foreach ($xmlArray as $name => $data)
+            {
+                if ($name == 'RTSPTimeout')
+                {
+                    $this->dataInfo[$name]['value'] = $data;
+                }
+                else
+                {
+                    SetData($this->protocol[$portName[$name]]->dataInfo, $this->protocol[$portName[$name]]->payload, $data);
+                }
+            }
+        }
+        else if ($_menu == 'IPFiltering')
+            $this->ipFiltering->ParserXML($xmlArray);
+        else if ($_menu == 'NTP')
+            $this->ntpInfo->ParserXML($xmlArray);
+        else if ($_menu == 'DDNS')
+            $this->ddnsInfo->ParserXML($xmlArray);
+        else if ($_menu == 'HostName')
+            SetData($this->hostName->dataInfo, $this->hostName->payload, $xmlArray);
+        else if ($_menu == 'FTP')
+            SetData($this->ftp->dataInfo, $this->ftp->payload, $xmlArray);
+        else if ($_menu == 'Email')
+            SetData($this->smtp->dataInfo, $this->smtp->payload, $xmlArray);
+
+        $this->SetPayload();
+    }
+
+    function PayloadToArray($_payload)
+    {
+        $dataArray = unpack($this->unpackFormat, $_payload);
+
+        for ($index = 0; $index < MAX_NETWORK_INTERFACE; ++$index)
+        {
+            $this->interface[$index]->UnpackData($dataArray['interface' . $index]);
+        }
+
+        for ($index = 0; $index < MAX_NETWORK_PROTOCOL; ++$index)
+        {
+            SetData($this->protocol[$index]->dataInfo, $this->protocol[$index]->payload, $dataArray['protocol' . $index]);
+        }
+
+        $this->dnsInfo->UnpackData($dataArray['dnsInfo']);
+        $this->gateway->UnpackData($dataArray['gateway']);
+        $this->ipFiltering->UnpackData($dataArray['ipFiltering']);
+        $this->ntpInfo->UnpackData($dataArray['ntpInfo']);
+        $this->ddnsInfo->UnpackData($dataArray['ddnsInfo']);
+        SetData($this->hostName->dataInfo, $this->hostName->payload, $dataArray['hostName']);
+        SetData($this->zeroConf->dataInfo, $this->zeroConf->payload, $dataArray['zeroConf']);
+        SetData($this->smtp->dataInfo, $this->smtp->payload, $dataArray['smtp']);
+        SetData($this->ftp->dataInfo, $this->ftp->payload, $dataArray['ftp']);
+        $this->dataInfo['RTSPTimeout']['value'] = $dataArray['RTSPTimeout'];
+        $this->dataInfo['SearchDomain']['value'] = $dataArray['SearchDomain'];
+        $this->dataInfo['Reserved']['value'] = $dataArray['Reserved'];
+    }
+
+    function SetPayload()
+    {
+        $this->payload = $this->hostName->payload . $this->dnsInfo->payload . GetPayloads($this->interface, MAX_NETWORK_INTERFACE) .
+            $this->gateway->payload . $this->ipFiltering->payload . $this->zeroConf->payload .
+            GetPayloads($this->protocol, MAX_NETWORK_PROTOCOL) . $this->ntpInfo->payload .
+            $this->ddnsInfo->payload . $this->smtp->payload . $this->ftp->payload . MakePayload($this->dataInfo);
+    }
+
+    function GetXMLData($_menu)
+    {
+        $msg = '';
+        if ($_menu == 'Interface')
+        {
+            $msg .= $this->interface[0]->GetXMLData($_menu);
+            $msg .= $this->gateway->GetXMLData($_menu);
+            $msg .= $this->dnsInfo->GetXMLData($_menu);
+        }
+        else if ($_menu == 'Port')
+        {
+            $protocolName = array('HTTP', 'HTTPS', 'RTSP', 'VNP', 'RTP', 'WebViewer');
+            for ($index = 0; $index < MAX_NETWORK_PROTOCOL; ++$index)
+            {
+                if ($index == 1 || $index == 4)
+                    continue;
+                $msg .= $this->protocol[$index]->GetXMLData($_menu, $protocolName[$index]);
+            }
+            $msg .= "\t" . '<RTSPTimeout>' . ($this->dataInfo['RTSPTimeout']['value'] ? 0 : 1) . '</RTSPTimeout>' . "\r\n";
+        }
+        else if ($_menu == 'DDNS')
+            $msg = $this->ddnsInfo->GetXMLData($_menu);
+        else if ($_menu == 'IPFiltering')
+            $msg = $this->ipFiltering->GetXMLData($_menu);
+        else if ($_menu == 'FTP')
+            $msg = MakeXMLData($this->ftp->dataInfo);
+        else if ($_menu == 'Email')
+            $msg = MakeXMLData($this->smtp->dataInfo);
+        else if ($_menu == 'NTP')
+            $msg = $this->ntpInfo->GetXMLData($_menu);
+
+        return $msg;
+    }
+
+}
+
+class HostName
+{
+
+    public $dataInfo;
+    public $payload;
+
+    function __construct()
+    {
+        $this->dataInfo = array('FromDHCP' => array('value' => 0, 'type' => 'c1'),
+            'Name' => array('value' => '', 'type' => 'A64'));
+    }
+
+}
+
+class DNSInformation
+{
+
+    public $dnsManual;
+    public $dnsDynamic;
+    public $payload;
+    public $dataInfo;
+    public $unpackFormat;
+    public $payloadLength;
+
+    function __construct()
+    {
+        for ($index = 0; $index < MAX_DNS; ++$index)
+        {
+            $this->dnsManual[$index] = new DNSAddress();
+            $this->dnsDynamic[$index] = new DNSAddress();
+        }
+        $this->dataInfo = array('Type' => array('value' => 0, 'type' => 'c1'));
+        $this->unpackFormat = MakeDataFormat($this->dataInfo) .
+            MakeUnpackFormat('dnsManual', GetDataInfoLength($this->dnsManual[0]->dataInfo), MAX_DNS) .
+            MakeUnpackFormat('dnsDynamic', GetDataInfoLength($this->dnsDynamic[0]->dataInfo), MAX_DNS);
+        $this->payloadLength = 1 + (MAX_DNS * GetDataInfoLength($this->dnsManual[0]->dataInfo)) * 2;
+    }
+
+    function UnpackData($_dataArray)
+    {
+        $_dataArray = unpack($this->unpackFormat, $_dataArray);
+        $this->dataInfo['Type']['value'] = $_dataArray['Type'];
+        for ($index = 0; $index < MAX_DNS; ++$index)
+        {
+            SetData($this->dnsManual[$index]->dataInfo, $this->dnsManual[$index]->payload, $_dataArray['dnsManual' . $index]);
+            SetData($this->dnsDynamic[$index]->dataInfo, $this->dnsDynamic[$index]->payload, $_dataArray['dnsDynamic' . $index]);
+        }
+        $this->SetPayload();
+    }
+
+    function ParserXML($_xmlData)
+    {
+        foreach ($_xmlData as $data => $value)
+        {
+            if ($data == 'Manual')
+            {
+                $index = 0;
+                foreach ($value as $addrVal)
+                {
+                    $this->dnsManual[$index]->dataInfo['Address']['value'] = $addrVal;
+                    $this->dnsManual[$index]->payload = MakePayload($this->dnsManual[$index]->dataInfo);
+                    $index++;
+                }
+            }
+            else if ($data == 'Dynamic')
+            {
+                $index = 0;
+                foreach ($value as $addrVal)
+                {
+                    $this->dnsDynamic[$index]->dataInfo['Address']['value'] = $addrVal;
+                    $this->dnsDynamic[$index]->payload = MakePayload($this->dnsDynamic[$index]->dataInfo);
+                    $index++;
+                }
+            }
+        }
+        $this->SetPayload();
+    }
+
+    function SetPayload()
+    {
+        $this->payload = MakePayload($this->dataInfo) . GetPayloads($this->dnsManual, MAX_DNS) . GetPayloads($this->dnsDynamic, MAX_DNS);
+    }
+
+    function GetXMLData($_menu)
+    {
+        $msg = "\t" . '<DNS>' . "\r\n";
+        $msg .= "\t\t" . '<Manual>' . "\r\n";
+        $msg .= "\t\t\t" . '<Address0>' . $this->dnsManual[0]->dataInfo['Address']['value'] . '</Address0>' . "\r\n";
+        $msg .= "\t\t\t" . '<Address1>' . $this->dnsManual[1]->dataInfo['Address']['value'] . '</Address1>' . "\r\n";
+        $msg .= "\t\t" . '</Manual>' . "\r\n";
+        $msg .= "\t" . '</DNS>' . "\r\n";
+        return $msg;
+    }
+
+}
+
+class DNSAddress
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Type' => array('value' => 0, 'type' => 'c1'),
+            'Address' => array('value' => '', 'type' => 'A40'));
+    }
+
+}
+
+class NTPInformation
+{
+
+    public $fromDHCP;
+    public $ntpFromDHCP;
+    public $ntpManual;
+    public $payload;
+    public $dataInfo;
+    public $unpackFormat;
+    public $payloadLength;
+
+    function __construct()
+    {
+        for ($index = 0; $index < MAX_NTP; ++$index)
+        {
+            $this->ntpFromDHCP[$index] = new NTPAddress();
+            $this->ntpManual[$index] = new NTPAddress();
+        }
+        $this->dataInfo = array('FromDHCP' => array('value' => 0, 'type' => 'c1'));
+        $this->unpackFormat = MakeDataFormat($this->dataInfo) .
+            MakeUnpackFormat('ntpFromDHCP', GetDataInfoLength($this->ntpFromDHCP[0]->dataInfo), MAX_NTP) .
+            MakeUnpackFormat('ntpManual', GetDataInfoLength($this->ntpManual[0]->dataInfo), MAX_NTP);
+        $this->payloadLength = 1 + (MAX_NTP * GetDataInfoLength($this->ntpFromDHCP[0]->dataInfo)) * 2;
+    }
+
+    function UnpackData($_dataArray)
+    {
+        $_dataArray = unpack($this->unpackFormat, $_dataArray);
+
+        for ($index = 0; $index < MAX_NTP; ++$index)
+        {
+            SetData($this->ntpFromDHCP[$index]->dataInfo, $this->ntpFromDHCP[$index]->payload, $_dataArray['ntpFromDHCP' . $index]);
+            SetData($this->ntpManual[$index]->dataInfo, $this->ntpManual[$index]->payload, $_dataArray['ntpManual' . $index]);
+        }
+        $this->dataInfo['FromDHCP']['value'] = $_dataArray['FromDHCP'];
+        $this->SetPayload();
+    }
+
+    function ParserXML($_xmlData)
+    {
+        foreach ($_xmlData as $key => $data)
+        {
+            if ($key == 'Manual')
+            {
+                $index = 0;
+                foreach ($data as $value)
+                {
+                    $this->ntpManual[$index]->dataInfo['Address']['value'] = $value;
+                    $this->ntpManual[$index]->payload = MakePayload($this->ntpManual[$index]->dataInfo);
+                    $index++;
+                }
+            }
+            else if ($key == 'Dynamic')
+            {
+                $index = 0;
+                foreach ($data as $value)
+                {
+                    $this->ntpFromDHCP[$index]->dataInfo['Address']['value'] = $value;
+                    $this->ntpFromDHCP[$index]->payload = MakePayload($this->ntpFromDHCP[$index]->dataInfo);
+                    $index++;
+                }
+            }
+        }
+        $this->SetPayload();
+    }
+
+    function SetPayload()
+    {
+        $this->payload = MakePayload($this->dataInfo) . GetPayloads($this->ntpFromDHCP, MAX_NTP) . GetPayloads($this->ntpManual, MAX_NTP);
+    }
+
+    function GetXMLData($_menu)
+    {
+        $msg = "\t" . '<Manual>' . "\r\n";
+        for ($index = 0; $index < MAX_NTP; ++$index)
+        {
+            $msg .= "\t\t" . '<Server' . $index . '>' . $this->ntpManual[$index]->dataInfo['Address']['value'] . '</Server' . $index . '>' . "\r\n";
+        }
+        $msg .= "\t" . '</Manual>' . "\r\n";
+        return $msg;
+    }
+
+}
+
+class NTPAddress
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Type' => array('value' => 0, 'type' => 'c1'),
+            'Address' => array('value' => '', 'type' => 'A40'),
+            'DNSName' => array('value' => '', 'type' => 'A40'));
+    }
+
+}
+
+class DDNSInformation
+{
+
+    public $ddns;
+    public $dataInfo;
+    public $payload;
+    public $unpackFormat;
+    public $payloadLength;
+
+    function __construct()
+    {
+        for ($index = 0; $index < MAX_DDNS; ++$index)
+        {
+            $this->ddns[$index] = new DDNS();
+        }
+        $this->dataInfo = array('Type' => array('value' => 0, 'type' => 'c1'));
+        $this->unpackFormat = MakeDataFormat($this->dataInfo) . MakeUnpackFormat('ddns', GetDataInfoLength($this->ddns[0]->dataInfo), MAX_DDNS);
+        $this->payloadLength = 1 + (GetDataInfoLength($this->ddns[0]->dataInfo) * MAX_DDNS);
+    }
+
+    function UnpackData($_dataArray)
+    {
+        $_dataArray = unpack($this->unpackFormat, $_dataArray);
+        for ($index = 0; $index < MAX_DDNS; ++$index)
+        {
+            SetData($this->ddns[$index]->dataInfo, $this->ddns[$index]->payload, $_dataArray['ddns' . $index]);
+        }
+        $this->dataInfo['Type']['value'] = $_dataArray['Type'];
+        $this->SetPayload();
+    }
+
+    function ParserXML($_xmlData)
+    {
+        foreach ($_xmlData as $name => $data)
+        {
+            if ($name == 'Type')
+            {
+                $this->dataInfo['Type']['value'] = $data;
+            }
+            else if ($name == 'SamsungDDNS')
+            {
+                SetData($this->ddns[0]->dataInfo, $this->ddns[0]->payload, $data);
+            }
+            else if ($name == 'PublicDDNS')
+            {
+                SetData($this->ddns[1]->dataInfo, $this->ddns[1]->payload, $data);
+            }
+        }
+        $this->SetPayload();
+    }
+
+    function SetPayload()
+    {
+        $this->payload = MakePayload($this->dataInfo) . GetPayloads($this->ddns, MAX_DDNS);
+    }
+
+    function GetXMLData($_menu)
+    {
+        $msg = "\t" . '<Type>' . $this->dataInfo['Type']['value'] . '</Type>' . "\r\n";
+        $msg .= $this->ddns[0]->GetXMLData('SamsungDDNS');
+        $msg .= $this->ddns[1]->GetXMLData('PublicDDNS');
+        return $msg;
+    }
+
+}
+
+class DDNS
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Type' => array('value' => 0, 'type' => 'c1'),
+            'Name' => array('value' => '', 'type' => 'A64'),
+            'TTL' => array('value' => 0, 'type' => 'i1'),
+            'Service' => array('value' => 0, 'type' => 'c1'),
+            'UserName' => array('value' => '', 'type' => 'A32'),
+            'Password' => array('value' => '', 'type' => 'A32'));
+    }
+
+    function GetXMLData($_ddnsName)
+    {
+        $msg = "\t" . '<' . $_ddnsName . '>' . "\r\n";
+        foreach ($this->dataInfo as $name => $value)
+        {
+            if ($name == 'Type' || $name == 'TTL')
+                continue;
+            if ($_ddnsName == 'SamsungDDNS' && $name == 'Service')
+                continue;
+            $msg .= "\t\t" . '<' . $name . '>' . $value['value'] . '</' . $name . '>' . "\r\n";
+        }
+        $msg .= "\t" . '</' . $_ddnsName . '>' . "\r\n";
+        return $msg;
+    }
+
+}
+
+class NetworkInterface
+{
+
+    public $ipv4AddrConf;
+    public $ipv6AddrConf;
+    public $payload;
+    public $dataInfo;
+    public $unpackFormat;
+    public $payloadLength;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Token' => array('value' => '', 'type' => 'A64'),
+            'Enabled' => array('value' => 0, 'type' => 'c1'),
+            'HWAddress' => array('value' => '', 'type' => 'A18'));
+        $this->ipv4AddrConf = new IPv4AddressConf();  //	188
+        $this->ipv6AddrConf = new IPv6AddressConf();  // 84
+        $this->payloadLength = GetDataInfoLength($this->dataInfo) + $this->ipv4AddrConf->payloadLength + $this->ipv6AddrConf->payloadLength;
+        $this->unpackFormat = 'A' . GetDataInfoLength($this->dataInfo) . 'interfaceInfo/' .
+            'A' . $this->ipv4AddrConf->payloadLength . 'ipv4AddrConf/' .
+            'A' . $this->ipv6AddrConf->payloadLength . 'ipv6AddrConf';
+    }
+
+    function UnpackData($_dataArray)
+    {
+        $_dataArray = unpack($this->unpackFormat, $_dataArray);
+        SetData($this->dataInfo, $this->payload, $_dataArray['interfaceInfo']);
+        $this->ipv4AddrConf->UnpacktData($_dataArray['ipv4AddrConf']);
+        $this->ipv6AddrConf->UnpacktData($_dataArray['ipv6AddrConf']);
+        $this->SetPayload();
+    }
+
+    function SetPayload()
+    {
+        $this->payload = MakePayload($this->dataInfo) . $this->ipv4AddrConf->payload . $this->ipv6AddrConf->payload;
+    }
+
+    function GetXMLData($_menu)
+    {
+        $msg = "\t" . '<Interface>' . "\r\n";
+        $msg .= $this->ipv4AddrConf->GetXMLData($_menu);
+        $msg .= $this->ipv6AddrConf->GetXMLData($_menu);
+        $msg .= "\t" . '</Interface>' . "\r\n";
+
+        return $msg;
+    }
+
+}
+
+class IPv4AddressConf
+{
+
+    public $staticAddr;
+    public $dynamicAddr;
+    public $payload;
+    public $dataInfo;
+    public $unpackFormat;
+    public $payloadLength;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Enabled' => array('value' => 0, 'type' => 'c1'),
+            'Type' => array('value' => 0, 'type' => 'c1'),
+            'XDSLUserName' => array('value' => '', 'type' => 'A64'),
+            'XDSLPassword' => array('value' => '', 'type' => 'A64'));
+        for ($index = 0; $index < MAX_IPV4ADDRESS; ++$index)
+        {
+            $this->staticAddr[$index] = new PrefixedIPv4Addr();
+        }
+        $this->dynamicAddr = new PrefixedIPv4Addr();
+        $this->unpackFormat = 'c1' . 'Enabled/' . 'c1' . 'Type/' .
+            MakeUnpackFormat('staticAddr', GetDataInfoLength($this->staticAddr[0]->dataInfo), MAX_IPV4ADDRESS) .
+            'A' . GetDataInfoLength($this->dynamicAddr->dataInfo) . 'dynamicAddr/' .
+            'A64' . 'XDSLUserName/' . 'A64' . 'XDSLPassword';
+        $this->payloadLength = GetDataInfoLength($this->dataInfo) + (MAX_IPV4ADDRESS * GetDataInfoLength($this->staticAddr[0]->dataInfo)) + GetDataInfoLength($this->dynamicAddr->dataInfo);
+    }
+
+    function UnpacktData($_dataArray)
+    {
+        $_dataArray = unpack($this->unpackFormat, $_dataArray);
+
+        $this->dataInfo['Enabled']['value'] = $_dataArray['Enabled'];
+        $this->dataInfo['Type']['value'] = $_dataArray['Type'];
+        $this->dataInfo['XDSLUserName']['value'] = trim($_dataArray['XDSLUserName']);
+        $this->dataInfo['XDSLPassword']['value'] = trim($_dataArray['XDSLPassword']);
+
+        for ($index = 0; $index < MAX_IPV4ADDRESS; ++$index)
+        {
+            SetData($this->staticAddr[$index]->dataInfo, $this->staticAddr[$index]->payload, $_dataArray['staticAddr' . $index]);
+        }
+        SetData($this->dynamicAddr->dataInfo, $this->dynamicAddr->payload, $_dataArray['dynamicAddr']);
+        $this->SetPayload();
+    }
+
+    function ParserXML($_xmlData)
+    {
+        $ipType = 0;
+        $isXDSL = FALSE;
+        $isManual = FALSE;
+
+        foreach ($_xmlData as $data => $value)
+        {
+            if ($data == 'Type')
+            {
+                $ipType = $value;
+                $this->dataInfo['Type']['value'] = $value;
+            }
+            else if ($data == 'XDSLUserName')
+            {
+                $isXDSL = TRUE;
+                $this->dataInfo['XDSLUserName']['value'] = trim($value);
+            }
+            else if ($data == 'XDSLPassword')
+            {
+                $isXDSL = TRUE;
+                $this->dataInfo['XDSLPassword']['value'] = trim($value);
+            }
+            else if ($data == 'Address')
+            {
+                $isManual = TRUE;
+                if ($ipType == 0)
+                {
+                    for ($index = 0; $index < MAX_IPV4ADDRESS; ++$index)
+                    {
+                        $this->staticAddr[$index]->dataInfo['Address']['value'] = trim($value);
+                        $this->staticAddr[$index]->payload = MakePayload($this->staticAddr[$index]->dataInfo);
+                    }
+                }
+                else
+                {
+                    $this->dynamicAddr->dataInfo['Address']['value'] = trim($value);
+                    $this->dynamicAddr->payload = MakePayload($this->dynamicAddr->dataInfo);
+                }
+            }
+            else if ($data == 'Prefix')
+            {
+                $isManual = TRUE;
+                if ($ipType == 0)
+                {
+                    for ($index = 0; $index < MAX_IPV4ADDRESS; ++$index)
+                    {
+                        $this->staticAddr[$index]->dataInfo['Prefix']['value'] = $value;
+                        $this->staticAddr[$index]->payload = MakePayload($this->staticAddr[$index]->dataInfo);
+                    }
+                }
+                else
+                {
+                    $this->dynamicAddr->dataInfo['Prefix']['value'] = $value;
+                    $this->dynamicAddr->payload = MakePayload($this->dynamicAddr->dataInfo);
+                }
+            }
+        }
+
+        $this->SetPayload();
+    }
+
+    function SetPayload()
+    {
+        $this->payload = pack('c1', $this->dataInfo['Enabled']['value']) . pack('c1', $this->dataInfo['Type']['value']) .
+            GetPayloads($this->staticAddr, MAX_IPV4ADDRESS) . $this->dynamicAddr->payload .
+            pack('a64', $this->dataInfo['XDSLUserName']['value']) . pack('a64', $this->dataInfo['XDSLPassword']['value']);
+    }
+
+    function GetXMLData($_menu)
+    {
+        $msg = "\t\t" . '<IPv4Interface>' . "\r\n";
+        $msg .= "\t\t\t" . '<Type>' . $this->dataInfo1['Type']['value'] . '</Type>' . "\r\n";    // Manual:0, DHCP:1, XDSL:2
+        if ($this->dataInfo1['Type']['value'] == 0)
+        {
+            $msg .= "\t\t\t" . '<Address>' . $this->staticAddr[0]->dataInfo['Address']['value'] . '</Address>' . "\r\n";
+            $msg .= "\t\t\t" . '<Prefix>' . $this->staticAddr[0]->dataInfo['Prefix']['value'] . '</Prefix>' . "\r\n";
+        }
+        else
+        {
+            $msg .= "\t\t\t" . '<Address>' . $this->dynamicAddr->dataInfo['Address']['value'] . '</Address>' . "\r\n";
+            $msg .= "\t\t\t" . '<Prefix>' . $this->dynamicAddr->dataInfo['Prefix']['value'] . '</Prefix>' . "\r\n";
+        }
+
+        if ($this->dataInfo1['Type']['value'] == 2)
+        {
+            $msg .= "\t\t\t" . '<XDSLUserName>' . $this->dataInfo2['XDSLUserName']['value'] . '</XDSLUserName>' . "\r\n";
+            $msg .= "\t\t\t" . '<XDSLPassword>' . $this->dataInfo2['XDSLPassword']['value'] . '</XDSLPassword>' . "\r\n";
+        }
+        $msg .= "\t\t" . '</IPv4Interface>' . "\r\n";
+
+        return $msg;
+    }
+
+}
+
+class IPv6AddressConf
+{
+
+    public $staticAddr;
+    public $dynamicAddr;
+    public $defaultAddr;
+    public $payload;
+    public $dataInfo;
+    public $unpackFormat;
+    public $payloadLength;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Enabled' => array('value' => 0, 'type' => 'c1'),
+            'DHCP' => array('value' => 0, 'type' => 'c1'));
+        for ($index = 0; $index < MAX_IPV6ADDRESS; ++$index)
+        {
+
+            $this->defaultAddr[$index] = new PrefixedIPv6Addr();
+            $this->dynamicAddr[$index] = new PrefixedIPv6Addr();
+            $this->staticAddr[$index] = new PrefixedIPv6Addr();
+        }
+        $this->unpackFormat = MakeDataFormat($this->dataInfo);
+
+        $this->unpackFormat .= MakeUnpackFormat('defaultAddr', GetDataInfoLength($this->defaultAddr[0]->dataInfo), MAX_IPV6ADDRESS);
+
+        $this->unpackFormat .= MakeUnpackFormat('dynamicAddr', GetDataInfoLength($this->dynamicAddr[0]->dataInfo), MAX_IPV6ADDRESS) .
+            MakeUnpackFormat('staticAddr', GetDataInfoLength($this->staticAddr[0]->dataInfo), MAX_IPV6ADDRESS);
+        $this->payloadLength = GetDataInfoLength($this->dataInfo);
+
+        $this->payloadLength += (MAX_IPV6ADDRESS * GetDataInfoLength($this->defaultAddr[0]->dataInfo));
+
+        $this->payloadLength += (MAX_IPV6ADDRESS * GetDataInfoLength($this->dynamicAddr[0]->dataInfo)) +
+            (MAX_IPV6ADDRESS * GetDataInfoLength($this->staticAddr[0]->dataInfo));
+    }
+
+    function UnpacktData($_dataArray)
+    {
+        $_dataArray = unpack($this->unpackFormat, $_dataArray);
+
+        $this->dataInfo['Enabled']['value'] = $_dataArray['Enabled'];
+        $this->dataInfo['DHCP']['value'] = $_dataArray['DHCP'];
+
+        for ($index = 0; $index < MAX_IPV6ADDRESS; ++$index)
+        {
+            SetData($this->defaultAddr[$index]->dataInfo, $this->defaultAddr[$index]->payload, $_dataArray['defaultAddr' . $index]);
+            SetData($this->staticAddr[$index]->dataInfo, $this->staticAddr[$index]->payload, $_dataArray['staticAddr' . $index]);
+            SetData($this->dynamicAddr[$index]->dataInfo, $this->dynamicAddr[$index]->payload, $_dataArray['dynamicAddr' . $index]);
+        }
+        $this->SetPayload();
+    }
+
+    function ParserXML($_xmlData)
+    {
+        foreach ($_xmlData as $data => $value)
+        {
+            if ($data == 'Enabled')
+            {
+                $this->dataInfo['Enabled']['value'] = $value;
+            }
+            else if ($data == 'DHCP')
+            {
+                $this->dataInfo['DHCP']['value'] = $value;
+            }
+            else if ($data == 'Address')
+            {
+                for ($index = 0; $index < MAX_IPV6ADDRESS; ++$index)
+                {
+                    $this->staticAddr[$index]->dataInfo['Address']['value'] = trim($value);
+                    $this->staticAddr[$index]->payload = MakePayload($this->staticAddr[$index]->dataInfo);
+                }
+            }
+            else if ($data == 'Prefix')
+            {
+                for ($index = 0; $index < MAX_IPV6ADDRESS; ++$index)
+                {
+                    $this->staticAddr[$index]->dataInfo['Prefix']['value'] = $value;
+                    $this->staticAddr[$index]->payload = MakePayload($this->staticAddr[$index]->dataInfo);
+                }
+            }
+        }
+        $this->SetPayload();
+    }
+
+    function SetPayload()
+    {
+        $this->payload = MakePayload($this->dataInfo);
+        $this->payload .= GetPayloads($this->defaultAddr, MAX_IPV6ADDRESS);
+        $this->payload .= GetPayloads($this->dynamicAddr, MAX_IPV6ADDRESS) . GetPayloads($this->staticAddr, MAX_IPV6ADDRESS);
+    }
+
+    function GetXMLData($_menu)
+    {
+        $msg = "\t\t" . '<IPv6Interface>' . "\r\n";
+        $msg .= "\t\t\t" . '<Enabled>' . $this->dataInfo['Enabled']['value'] . '</Enabled>' . "\r\n";
+        if ($this->dataInfo['Enabled']['value'] != 0)
+        {
+            $msg .= "\t\t\t" . '<DefaultAddress>' . $this->defaultAddr[0]->dataInfo['Address']['value'] . '</Address>' . "\r\n";
+            $msg .= "\t\t\t" . '<DefaultPrefix>' . $this->defaultAddr[0]->dataInfo['Prefix']['value'] . '</Prefix>' . "\r\n";
+
+            if ($this->dataInfo['DHCP']['value'] == 4)
+            {
+                $msg .= "\t\t\t" . '<StaticAddress>' . $this->staticAddr[0]->dataInfo['Address']['value'] . '</Address>' . "\r\n";
+                $msg .= "\t\t\t" . '<StaticPrefix>' . $this->staticAddr[0]->dataInfo['Prefix']['value'] . '</Prefix>' . "\r\n";
+            }
+            else
+            {
+                $msg .= "\t\t\t" . '<DynamicAddress>' . $this->dynamicAddr[0]->dataInfo['Address']['value'] . '</Address>' . "\r\n";
+                $msg .= "\t\t\t" . '<DynamicPrefix>' . $this->dynamicAddr[0]->dataInfo['Prefix']['value'] . '</Prefix>' . "\r\n";
+            }
+        }
+        $msg .= "\t\t" . '</IPv6Interface>' . "\r\n";
+        return $msg;
+    }
+
+}
+
+class PrefixedIPv4Addr
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Address' => array('value' => '', 'type' => 'A16'),
+            'Prefix' => array('value' => 32, 'type' => 'i1'));
+    }
+
+}
+
+class PrefixedIPv6Addr
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Address' => array('value' => '', 'type' => 'A40'),
+            'Prefix' => array('value' => 128, 'type' => 'i1'));
+    }
+
+}
+
+class NetworkGateway
+{
+
+    public $ipv4Addr;
+    public $ipv6Addr;
+    public $payload;
+    public $unpackFormat = '';
+    public $payloadLength;
+
+    function __construct()
+    {
+        $this->ipv4Addr = $this->ipv6addr = array();
+        for ($index = 0; $index < MAX_IPV4_GATEWAY; ++$index)
+        {
+            $this->unpackFormat .= 'A16' . 'ipv4Addr' . $index . '/';
+        }
+        for ($index = 0; $index < MAX_IPV6_GATEWAY; ++$index)
+        {
+            $this->unpackFormat .= 'A40' . 'ipv6Addr' . $index . '/';
+        }
+        $this->payloadLength = (16 * MAX_IPV4_GATEWAY) + (40 * MAX_IPV6_GATEWAY);
+    }
+
+    function UnpackData($_dataArray)
+    {
+        $dataArray = unpack($this->unpackFormat, $_dataArray);
+        for ($index = 0; $index < MAX_IPV4_GATEWAY; ++$index)
+        {
+            $this->ipv4Addr[$index] = trim($dataArray['ipv4Addr' . $index]);
+        }
+
+        for ($index = 0; $index < MAX_IPV6_GATEWAY; ++$index)
+        {
+            $this->ipv6Addr[$index] = trim($dataArray['ipv6Addr' . $index]);
+        }
+        $this->SetPayload();
+    }
+
+    function ParserXML($_xmlData)
+    {
+        foreach ($_xmlData as $data)
+        {
+            if ($data->GetName() == 'IPv4Gateway')
+            {
+                $index = 0;
+                foreach ($data as $key => $value)
+                {
+                    if (substr($this->dataInfo[$name]['type'], 0, 1) == 'A')
+                    {
+                        $value = trim($value);
+                    }
+                    $this->ipv4Addr[$index] = $value;
+                }
+            }
+            else if ($data->GetName() == 'IPv6Gateway')
+            {
+                $index = 0;
+                foreach ($data as $key => $value)
+                {
+                    if (substr($this->dataInfo[$name]['type'], 0, 1) == 'A')
+                    {
+                        $value = trim($value);
+                    }
+                    $this->ipv6Addr[$index] = $value;
+                }
+            }
+        }
+        $this->SetPayload();
+    }
+
+    function SetPayload()
+    {
+        $this->payload = '';
+        for ($index = 0; $index < MAX_IPV4_GATEWAY; ++$index)
+        {
+            $this->payload .= pack('a16', $this->ipv4Addr[$index]);
+        }
+        for ($index = 0; $index < MAX_IPV6_GATEWAY; ++$index)
+        {
+            $this->payload .= pack('a40', $this->ipv6Addr[$index]);
+        }
+    }
+
+    function GetXMLData($_menu)
+    {
+        $msg = "\t" . '<Gateway>' . "\r\n";
+        $msg .= "\t\t" . '<IPv4Gateway>' . "\r\n";
+        $msg .= "\t\t\t" . '<Address>' . $this->ipv4Addr[0] . '</Address>' . "\r\n";
+        $msg .= "\t\t" . '</IPv4Gateway>' . "\r\n";
+        $msg .= "\t" . '</Gateway>' . "\r\n";
+        return $msg;
+    }
+
+}
+
+class IPAddressFiltering
+{
+
+    public $ipv4Addr;
+    public $ipv6Addr;
+    public $type;
+    public $enableIPv4Filter;
+    public $enableIPv6filter;
+    public $payload;
+    public $unpackFormat;
+    public $payloadLength;
+
+    function __construct()
+    {
+        $this->enableIPv4Filter = array();
+        $this->enableIPv6Filter = array();
+
+        $this->unpackFormat = 'c1' . 'Type' . '/';
+
+        for ($index = 0; $index < MAX_IPV4_IPFILTER; ++$index)
+        {
+            $this->unpackFormat .= 'c1' . 'EnableIPv4Filter' . $index . '/';
+        }
+
+        for ($index = 0; $index < MAX_IPV4_IPFILTER; ++$index)
+        {
+            $this->ipv4Addr[$index] = new PrefixedIPv4Addr();
+        }
+
+        $this->unpackFormat .= MakeUnpackFormat('IPv4Addr', GetDataInfoLength($this->ipv4Addr[0]->dataInfo), MAX_IPV4_IPFILTER);
+
+        for ($index = 0; $index < MAX_IPV6_IPFILTER; ++$index)
+        {
+            $this->unpackFormat .= 'c1' . 'EnableIPv6Filter' . $index . '/';
+        }
+
+        for ($index = 0; $index < MAX_IPV6_IPFILTER; ++$index)
+        {
+            $this->ipv6Addr[$index] = new PrefixedIPv6Addr();
+        }
+        $this->unpackFormat .= MakeUnpackFormat('IPv6Addr', GetDataInfoLength($this->ipv6Addr[0]->dataInfo), MAX_IPV6_IPFILTER);
+
+        $this->payloadLength = 1 + (MAX_IPV4_IPFILTER + MAX_IPV6_IPFILTER) +
+            (MAX_IPV4_IPFILTER * GetDataInfoLength($this->ipv4Addr[0]->dataInfo)) +
+            (MAX_IPV6_IPFILTER * GetDataInfoLength($this->ipv6Addr[0]->dataInfo));
+    }
+
+    function UnpackData($_dataArray)
+    {
+        $_dataArray = unpack($this->unpackFormat, $_dataArray);
+        $this->type = $_dataArray['Type'];
+
+        for ($index = 0; $index < MAX_IPV4_IPFILTER; ++$index)
+        {
+            $this->enableIPv4Filter[$index] = $_dataArray['EnableIPv4Filter' . $index];
+            SetData($this->ipv4Addr[$index]->dataInfo, $this->ipv4Addr[$index]->payload, $_dataArray['IPv4Addr' . $index]);
+            $this->ipv4Addr[$index]->payload = MakePayload($this->ipv4Addr[$index]->dataInfo);
+
+            $this->enableIPv6Filter[$index] = $_dataArray['EnableIPv6Filter' . $index];
+            SetData($this->ipv6Addr[$index]->dataInfo, $this->ipv6Addr[$index]->payload, $_dataArray['IPv6Addr' . $index]);
+            $this->ipv6Addr[$index]->payload = MakePayload($this->ipv6Addr[$index]->dataInfo);
+        }
+        $this->SetPayload();
+    }
+
+    function ParserXML($_xmlData)
+    {
+        foreach ($_xmlData as $key => $filterList)
+        {
+            foreach ($filterList as $filter => $data)
+            {
+                if ($filter == 'FilteringType')
+                {
+                    foreach ($data as $name => $value)
+                    {
+                        $this->type = $value;
+                    }
+                }
+                else if ($filter == 'IPv4Filtering')
+                {
+                    $index = 0;
+                    foreach ($data as $filterInfo)
+                    {
+                        foreach ($filterInfo as $name => $value)
+                        {
+                            if ($name == 'Enabled')
+                            {
+                                $this->enableIPv4Filter[$index] = $value;
+                            }
+                            else if ($name == 'IPAddress')
+                            {
+                                $this->ipv4Addr[$index]->dataInfo['Address']['value'] = $value;
+                            }
+                            else if ($name == 'Prefix')
+                            {
+                                $this->ipv4Addr[$index]->dataInfo['Prefix']['value'] = $value;
+                            }
+                        }
+                        $index++;
+                    }
+                }
+                else if ($filter == 'IPv6Filtering')
+                {
+                    $index = 0;
+                    foreach ($data as $filterInfo)
+                    {
+                        foreach ($filterInfo as $name => $value)
+                        {
+                            if ($name == 'Enabled')
+                            {
+                                $this->enableIPv6Filter[$index] = $value;
+                            }
+                            else if ($name == 'IPAddress')
+                            {
+                                $this->ipv6Addr[$index]->dataInfo['Address']['value'] = $value;
+                            }
+                            else if ($name == 'Prefix')
+                            {
+                                $this->ipv6Addr[$index]->dataInfo['Prefix']['value'] = $value;
+                            }
+                        }
+                        $index++;
+                    }
+                }
+            }
+        }
+
+        for ($index = 0; $index < MAX_IPV4_IPFILTER; ++$index)
+        {
+            $this->ipv4Addr[$index]->payload = MakePayload($this->ipv4Addr[$index]->dataInfo);
+            $this->ipv6Addr[$index]->payload = MakePayload($this->ipv6Addr[$index]->dataInfo);
+        }
+
+        $this->SetPayload();
+    }
+
+    function SetPayload()
+    {
+        $this->payload = pack('c1', $this->type);
+        for ($index = 0; $index < MAX_IPV4_IPFILTER; ++$index)
+        {
+            $this->payload .= pack('c1', $this->enableIPv4Filter[$index]);
+        }
+        $this->payload .= GetPayloads($this->ipv4Addr, MAX_IPV4_IPFILTER);
+
+        for ($index = 0; $index < MAX_IPV6_IPFILTER; ++$index)
+        {
+            $this->payload .= pack('c1', $this->enableIPv6Filter[$index]);
+        }
+        $this->payload .= GetPayloads($this->ipv6Addr, MAX_IPV6_IPFILTER);
+    }
+
+    function GetXMLData($_menu)
+    {
+        $msg = "\t" . '<IPFiltering>' . "\r\n";
+        $msg .= "\t\t" . '<FilteringType>' . "\r\n";
+        $msg .= "\t\t\t" . '<Type>' . $this->type . '</Type>' . "\r\n";
+        $msg .= "\t\t" . '</FilteringType>' . "\r\n";
+        $msg .= "\t\t" . '<IPv4Filtering>' . "\r\n";
+
+        for ($index = 0; $index < MAX_IPV4_IPFILTER; ++$index)
+        {
+            $msg .= "\t\t\t" . '<Address' . $index . '>' . "\r\n";
+            $msg .= "\t\t\t\t" . '<Enabled>' . $this->enableIPv4Filter[$index] . '</Enabled>' . "\r\n";
+            $msg .= "\t\t\t\t" . '<IPAddress>' . trim($this->ipv4Addr[$index]->dataInfo['Address']['value']) . '</IPAddress>' . "\r\n";
+            $msg .= "\t\t\t\t" . '<Prefix>' . $this->ipv4Addr[$index]->dataInfo['Prefix']['value'] . '</Prefix>' . "\r\n";
+            $msg .= "\t\t\t" . '</Address' . $index . '>' . "\r\n";
+        }
+        $msg .= "\t\t" . '</IPv4Filtering>' . "\r\n";
+        $msg .= "\t\t" . '<IPv6Filtering>' . "\r\n";
+
+        for ($index = 0; $index < MAX_IPV6_IPFILTER; ++$index)
+        {
+            $msg .= "\t\t\t" . '<Address' . $index . '>' . "\r\n";
+            $msg .= "\t\t\t\t" . '<Enabled>' . $this->enableIPv6Filter[$index] . '</Enabled>' . "\r\n";
+            $msg .= "\t\t\t\t" . '<IPAddress>' . trim($this->ipv6Addr[$index]->dataInfo['Address']['value']) . '</IPAddress>' . "\r\n";
+            $msg .= "\t\t\t\t" . '<Prefix>' . $this->ipv6Addr[$index]->dataInfo['Prefix']['value'] . '</Prefix>' . "\r\n";
+            $msg .= "\t\t\t" . '</Address' . $index . '>' . "\r\n";
+        }
+        $msg .= "\t\t" . '</IPv6Filtering>' . "\r\n";
+        $msg .= "\t" . '</IPFiltering>' . "\r\n";
+        return $msg;
+    }
+
+}
+
+class ZeroConfiguration
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('InterfaceToken' => array('value' => '', 'type' => 'A64'),
+            'Enabled' => array('value' => 0, 'type' => 'c1'),
+            'Address' => array('value' => '', 'type' => 'A40'));
+    }
+
+}
+
+class NetworkProtocol
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Name' => array('value' => 0, 'type' => 'c1'),
+            'Enabled' => array('value' => 0, 'type' => 'c1'),
+            'Port' => array('value' => 0, 'type' => 'i1'));
+        $this->payload = MakePayload($this->dataInfo);
+    }
+
+    function GetXMLData($_menu, $_type)
+    {
+        $msg = "\t" . '<' . $_type . '>' . "\r\n";
+        $msg .= "\t\t" . '<Port>' . $this->dataInfo['Port']['value'] . '</Port>' . "\r\n";
+        $msg .= "\t" . '</' . $_type . '>' . "\r\n";
+        return $msg;
+    }
+
+}
+
+class SMTPSetting
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Sender' => array('value' => '', 'type' => 'A128'),
+            'Recipient' => array('value' => '', 'type' => 'A128'),
+            'Server' => array('value' => '', 'type' => 'A128'),
+            'Port' => array('value' => 0, 'type' => 'i1'),
+            'AuthNeeded' => array('value' => 0, 'type' => 'c1'),
+            'UserName' => array('value' => '', 'type' => 'A64'),
+            'Password' => array('value' => '', 'type' => 'A64'),
+            'Subject' => array('value' => '', 'type' => 'A256'),
+            'Body' => array('value' => '', 'type' => 'A1024'),
+            'SSLEnabled' => array('value' => 0, 'type' => 'c1'),
+            'SSLPort' => array('value' => 0, 'type' => 'i1'),
+            'TestResult' => array('value' => 0, 'type' => 'c1'),
+            'PreAlarm' => array('value' => 0, 'type' => 'c1'),
+            'PostAlarm' => array('value' => 0, 'type' => 'c1'),
+            'Interval' => array('value' => 0, 'type' => 'c1'));
+    }
+
+}
+
+class FTPSetting
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Server' => array('value' => '', 'type' => 'A128'),
+            'Directory' => array('value' => '', 'type' => 'A256'),
+            'Port' => array('value' => 0, 'type' => 'i1'),
+            'UserName' => array('value' => '', 'type' => 'A64'),
+            'Password' => array('value' => '', 'type' => 'A64'),
+            'PassiveMode' => array('value' => 0, 'type' => 'c1'),
+            'TestResult' => array('value' => 0, 'type' => 'c1'),
+            'PreAlarm' => array('value' => 0, 'type' => 'c1'),
+            'PostAlarm' => array('value' => 0, 'type' => 'c1'),
+            'Interval' => array('value' => 0, 'type' => 'c1'));
+    }
+
+}
+
+?>

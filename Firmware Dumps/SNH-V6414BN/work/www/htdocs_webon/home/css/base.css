@@ -1,0 +1,108 @@
+@charset 'utf-8';
+
+/* Reset */
+body, h1, h2, h3, h4, h5, h6,
+div, p, blockquote, pre, address,
+ul, ol, li, dl, dt, dd,
+table, caption, th, td,
+form, fieldset, legend,
+hr {
+	margin:0;
+	padding:0;
+}
+h1, h2, h3, h4, h5, h6 {
+	font-size:100%;
+}
+ul, ol {
+	list-style:none;
+}
+table {
+	margin:0;
+	padding:0;
+	border-spacing:0;
+	border:0;
+	_border-collapse:collapse;
+}
+*+html table {border-collapse:collapse;}
+img, fieldset, abbr, acronym {
+	border:0;
+}
+address, caption, cite, code, dfn, em, var {
+	font-style:normal;
+	font-weight:normal;
+}
+q:before, q:after {
+	content: '';
+}
+input, button, textarea {
+	color:#555f60;
+	font-size:100%;
+	font-family: Verdana,Arial,sans-serif;
+	ime-mode:disabled;	/* IE, FF */
+}
+select, option {
+	border:0px solid #c1c1c1;
+	font-size:100%;
+	font-family: Verdana,Arial,sans-serif;
+}
+/* Base */
+body {
+	color:#c6c9ce;
+	font:12px/18px Verdana, sans-serif;
+	background:url('../images/common/bg_ipolis.gif') repeat-x 0 0 #40495a;
+}
+body.ptz{
+	color:#c6c9ce;
+	font:12px/18px Verdana, sans-serif;
+	background:repeat-x 0 0 #40495a;
+}
+hr {display:none}
+caption, legend,
+#skipNavi {
+	width:0;
+	height:0;
+	line-height:0;
+	overflow:hidden;
+	visibility:hidden;
+	font-size:0;
+}
+a {
+	text-decoration:none;
+}
+a:focus, a:hover, a:active {
+	/*color:#555f60;*/
+	text-decoration:underline;
+	outline: none;
+}
+input.text,
+input.password,
+textarea {
+	padding:2px 0 1px;
+	border:1px solid #383e4a;
+	margin:0;
+	ime-mode:disabled;	/* IE, FF */
+}
+label {
+	cursor:text;
+}
+label input {
+	margin-right:5px;
+}
+
+input {
+	cursor:default;
+}
+
+textarea, pre {
+	overflow:auto;
+}
+
+.invisible {
+	overflow:hidden;
+	visibility:hidden;
+	width:0;
+	height:0;
+	font-size:0;
+	line-height:0;
+}
+

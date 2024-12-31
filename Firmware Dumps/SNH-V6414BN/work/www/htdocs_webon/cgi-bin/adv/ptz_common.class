@@ -1,0 +1,48 @@
+<?php
+
+class PTZPosition
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo	 = array('PanReal'	=>	array('value'=>0, 'type'=>'i1'),
+										'PanNorm'	=>	array('value'=>0, 'type'=>'i1'),
+										'TiltReal'	=>	array('value'=>0, 'type'=>'i1'),
+										'TiltNorm'	=>	array('value'=>0, 'type'=>'i1'),
+										'ZoomReal'	=>	array('value'=>0, 'type'=>'i1'),
+										'ZoomNorm'	=>	array('value'=>0, 'type'=>'i1'),
+										'FocusReal'	=>	array('value'=>0, 'type'=>'i1'),
+										'FocusNorm'	=> array('value'=>0, 'type'=>'i1'));
+		$this->payload 	= MakePayload($this->dataInfo);
+	}
+
+	function ParserXML($_command, $_menu, $_xmlMsg)
+	{
+		foreach ($_xmlMsg as $name=>$value)
+		{
+			if ($_command == CMD_PTZ_ABSMOVE && $name == 'ZoomReal')	$value = $value*100;
+			$this->dataInfo[$name]['value'] = $value;
+		}
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+class PTZSpeed
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo	 = array('PanReal'	=>	array('value'=>0, 'type'=>'i1'),
+										'PanNorm'	=>	array('value'=>0, 'type'=>'i1'),
+										'TiltReal'	=>	array('value'=>0, 'type'=>'i1'),
+										'TiltNorm'	=>	array('value'=>0, 'type'=>'i1'),
+										'ZoomReal'	=>	array('value'=>4, 'type'=>'i1'),
+										'ZoomNorm'	=>	array('value'=>0, 'type'=>'i1'));
+		$this->payload 	= MakePayload($this->dataInfo);
+	}
+}
+?>

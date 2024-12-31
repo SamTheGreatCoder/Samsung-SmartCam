@@ -1,0 +1,91 @@
+kernel/fs/mbcache.ko:
+kernel/fs/ext4/ext4.ko: kernel/fs/mbcache.ko kernel/fs/jbd2/jbd2.ko
+kernel/fs/jbd2/jbd2.ko:
+kernel/fs/fat/fat.ko:
+kernel/fs/fat/vfat.ko: kernel/fs/fat/fat.ko
+kernel/fs/nfsd/nfsd.ko:
+kernel/fs/fuse/fuse.ko:
+kernel/fs/fuse/cuse.ko: kernel/fs/fuse/fuse.ko
+kernel/crypto/crc32c.ko:
+kernel/drivers/pwm/pwm-ambarella.ko:
+kernel/drivers/video/console/fbcon.ko: kernel/drivers/video/console/bitblit.ko kernel/drivers/video/console/softcursor.ko
+kernel/drivers/video/console/bitblit.ko: kernel/drivers/video/console/softcursor.ko
+kernel/drivers/video/console/softcursor.ko:
+kernel/drivers/video/backlight/backlight.ko:
+kernel/drivers/video/backlight/pwm_bl.ko: kernel/drivers/video/backlight/backlight.ko
+kernel/drivers/video/sysfillrect.ko:
+kernel/drivers/video/syscopyarea.ko:
+kernel/drivers/video/sysimgblt.ko:
+kernel/drivers/video/fb_sys_fops.ko:
+kernel/drivers/video/ambarella/ambarella_fb.ko: kernel/drivers/video/syscopyarea.ko kernel/drivers/video/sysfillrect.ko kernel/drivers/video/sysimgblt.ko
+kernel/drivers/base/regmap/regmap-i2c.ko:
+kernel/drivers/base/regmap/regmap-spi.ko:
+kernel/drivers/spi/spidev.ko:
+kernel/drivers/spi/spi-ambarella.ko:
+kernel/drivers/spi/spi_slave_ambarella.ko:
+kernel/drivers/net/phy/ksz80x1r.ko:
+kernel/drivers/net/wireless/ath/ath6kl/ath6kl_core.ko:
+kernel/drivers/net/wireless/ath/ath6kl/ath6kl_sdio.ko: kernel/drivers/net/wireless/ath/ath6kl/ath6kl_core.ko
+kernel/drivers/net/wireless/mwifiex/mwifiex.ko:
+kernel/drivers/net/wireless/mwifiex/mwifiex_sdio.ko: kernel/drivers/net/wireless/mwifiex/mwifiex.ko
+kernel/drivers/usb/storage/usb-storage.ko: kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/usb/gadget/libcomposite.ko:
+kernel/drivers/usb/gadget/ambarella_udc.ko:
+kernel/drivers/usb/gadget/usb_f_acm.ko: kernel/drivers/usb/gadget/libcomposite.ko kernel/drivers/usb/gadget/u_serial.ko
+kernel/drivers/usb/gadget/u_serial.ko:
+kernel/drivers/usb/gadget/usb_f_serial.ko: kernel/drivers/usb/gadget/libcomposite.ko kernel/drivers/usb/gadget/u_serial.ko
+kernel/drivers/usb/gadget/usb_f_obex.ko: kernel/drivers/usb/gadget/libcomposite.ko kernel/drivers/usb/gadget/u_serial.ko
+kernel/drivers/usb/gadget/g_ether.ko: kernel/drivers/usb/gadget/libcomposite.ko
+kernel/drivers/usb/gadget/g_mass_storage.ko: kernel/drivers/usb/gadget/libcomposite.ko
+kernel/drivers/usb/gadget/g_serial.ko: kernel/drivers/usb/gadget/libcomposite.ko
+kernel/drivers/usb/gadget/g_multi.ko: kernel/drivers/usb/gadget/libcomposite.ko
+kernel/drivers/usb/serial/usbserial.ko:
+kernel/drivers/input/keyboard/gpio_keys.ko:
+kernel/drivers/input/misc/ambarella_input_ir.ko:
+kernel/drivers/input/misc/ambarella_input_adc.ko:
+kernel/drivers/input/misc/uinput.ko:
+kernel/drivers/input/evdev.ko:
+kernel/drivers/i2c/i2c-dev.ko:
+kernel/drivers/crypto/ambarella_crypto.ko:
+kernel/drivers/scsi/scsi_mod.ko:
+kernel/drivers/scsi/sd_mod.ko: kernel/drivers/scsi/scsi_mod.ko
+kernel/drivers/hid/hid.ko:
+kernel/drivers/hid/hid-generic.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-a4tech.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-apple.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-belkin.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-cherry.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-chicony.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-cypress.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-ezkey.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-kensington.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-logitech.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-microsoft.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/hid-monterey.ko: kernel/drivers/hid/hid.ko
+kernel/drivers/hid/usbhid/usbhid.ko: kernel/drivers/hid/hid.ko
+kernel/sound/soundcore.ko:
+kernel/sound/core/snd.ko: kernel/sound/soundcore.ko
+kernel/sound/core/snd-timer.ko: kernel/sound/core/snd.ko kernel/sound/soundcore.ko
+kernel/sound/core/snd-pcm.ko: kernel/sound/core/snd-page-alloc.ko kernel/sound/core/snd-timer.ko kernel/sound/core/snd.ko kernel/sound/soundcore.ko
+kernel/sound/core/snd-page-alloc.ko:
+kernel/sound/core/snd-compress.ko: kernel/sound/core/snd.ko kernel/sound/soundcore.ko
+kernel/sound/soc/snd-soc-core.ko: kernel/sound/core/snd-compress.ko kernel/drivers/base/regmap/regmap-i2c.ko kernel/sound/core/snd-pcm.ko kernel/sound/core/snd-page-alloc.ko kernel/sound/core/snd-timer.ko kernel/sound/core/snd.ko kernel/sound/soundcore.ko kernel/drivers/base/regmap/regmap-spi.ko
+kernel/sound/soc/ambarella/snd-soc-ambarella.ko: kernel/sound/soc/snd-soc-core.ko kernel/sound/core/snd-compress.ko kernel/drivers/base/regmap/regmap-i2c.ko kernel/sound/core/snd-pcm.ko kernel/sound/core/snd-page-alloc.ko kernel/sound/core/snd-timer.ko kernel/sound/core/snd.ko kernel/sound/soundcore.ko kernel/drivers/base/regmap/regmap-spi.ko
+kernel/sound/soc/ambarella/snd-soc-ambarella-i2s.ko: kernel/sound/soc/ambarella/snd-soc-ambarella.ko kernel/sound/soc/snd-soc-core.ko kernel/sound/core/snd-compress.ko kernel/drivers/base/regmap/regmap-i2c.ko kernel/sound/core/snd-pcm.ko kernel/sound/core/snd-page-alloc.ko kernel/sound/core/snd-timer.ko kernel/sound/core/snd.ko kernel/sound/soundcore.ko kernel/drivers/base/regmap/regmap-spi.ko
+kernel/sound/soc/ambarella/snd-soc-amba-board.ko: kernel/sound/soc/snd-soc-core.ko kernel/sound/core/snd-compress.ko kernel/drivers/base/regmap/regmap-i2c.ko kernel/sound/core/snd-pcm.ko kernel/sound/core/snd-page-alloc.ko kernel/sound/core/snd-timer.ko kernel/sound/core/snd.ko kernel/sound/soundcore.ko kernel/drivers/base/regmap/regmap-spi.ko
+kernel/sound/soc/codecs/snd-soc-wm8974-amb.ko: kernel/sound/soc/snd-soc-core.ko kernel/sound/core/snd-compress.ko kernel/drivers/base/regmap/regmap-i2c.ko kernel/sound/core/snd-pcm.ko kernel/sound/core/snd-page-alloc.ko kernel/sound/core/snd-timer.ko kernel/sound/core/snd.ko kernel/sound/soundcore.ko kernel/drivers/base/regmap/regmap-spi.ko
+kernel/sound/soc/codecs/snd-soc-ambdummy.ko: kernel/sound/soc/snd-soc-core.ko kernel/sound/core/snd-compress.ko kernel/drivers/base/regmap/regmap-i2c.ko kernel/sound/core/snd-pcm.ko kernel/sound/core/snd-page-alloc.ko kernel/sound/core/snd-timer.ko kernel/sound/core/snd.ko kernel/sound/soundcore.ko kernel/drivers/base/regmap/regmap-spi.ko
+kernel/net/ipv4/tcp_bic.ko:
+kernel/net/ipv4/tcp_westwood.ko:
+kernel/net/ipv4/tcp_htcp.ko:
+extra/imgproc.ko: extra/dsp.ko
+extra/ambad.ko:
+extra/vout.ko: extra/dsp.ko
+extra/fe_timer.ko:
+extra/mn34227pl.ko: extra/iav.ko extra/imgproc.ko extra/hw_timer.ko extra/vout.ko extra/dsp.ko
+extra/iav.ko: extra/imgproc.ko extra/hw_timer.ko extra/vout.ko extra/dsp.ko
+extra/hw_timer.ko:
+extra/ambdbus.ko: extra/vout.ko extra/dsp.ko
+extra/ambtve.ko: extra/vout.ko extra/dsp.ko
+extra/dsplog.ko: extra/dsp.ko
+extra/dsp.ko:

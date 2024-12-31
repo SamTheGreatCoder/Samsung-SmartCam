@@ -1,0 +1,76 @@
+<?php
+
+class ATCInformation
+{
+	public 	$profileAtcInfo;
+	public 	$userAtcInfo;
+	public 	$payload;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_ATC_INFORMATION, 'Action'=>$_action);
+		for ($index=0; $index<10; ++$index) {
+			$this->profileAtcInfo[$index] = new ProfileAtcInformation();
+			$this->userAtcInfo[$index] = new UserAtcInformation();
+		}
+	}
+
+	function PayloadToArray($payload)
+	{
+		$unpackFormat = MakeUnpackFormat('profileAtcInfo', GetDataInfoLength($this->profileAtcInfo[0]->dataInfo), 10).MakeUnpackFormat('userAtcInfo', GetDataInfoLength($this->userAtcInfo[0]->dataInfo)+40, 10);
+		$_dataArray = unpack($unpackFormat, $payload);
+		for ($index=0; $index<10; ++$index) {
+			SetData($this->profileAtcInfo[$index]->dataInfo, $this->profileAtcInfo[$index]->payload, $_dataArray['profileAtcInfo'.$index]);
+			$this->userAtcInfo[$index]->UnpackData($_dataArray['userAtcInfo'.$index]);
+		}
+	}
+}
+
+class ProfileAtcInformation
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Activate'		=> array('value'=>0, 'type'=>'i1'),
+										'Bitrate'		=> array('value'=>0, 'type'=>'i1'),
+										'Framerate'		=> array('value'=>0, 'type'=>'i1'),
+										'ATC_Mode'		=> array('value'=>0, 'type'=>'i1'),
+										'ATC_Rate'		=> array('value'=>0, 'type'=>'i1'));
+	}
+}
+
+class UserAtcInformation
+{
+	public	$usedProfile;
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Activate'		=> array('value'=>0, 'type'=>'i1'),
+										'IPAddress'		=> array('value'=>0, 'type'=>'A40'),
+										'Bitrate'		=> array('value'=>0, 'type'=>'i1'),
+										'NetworkState'	=> array('value'=>0, 'type'=>'i1'));
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$this->usedProfile = array();
+		$unpackFormat = MakeDataFormat($this->dataInfo);
+		for ($index=0; $index<10; ++$index) {
+			$this->usedProfile[$index] = 0;
+			$unpackFormat .= 'i1UsedProfile'.$index.'/';
+		}
+		$_dataArray = unpack($unpackFormat, $_dataArray);
+		$this->dataInfo['Activate']['value'] = $_dataArray['Activate'];
+		$this->dataInfo['IPAddress']['value'] = trim($_dataArray['IPAddress']);
+		$this->dataInfo['Bitrate']['value'] = $_dataArray['Bitrate'];
+		$this->dataInfo['NetworkState']['value'] = $_dataArray['NetworkState'];
+		for ($index=0; $index<10; ++$index) {
+			$this->usedProfile[$index] = $_dataArray['UsedProfile'.$index];
+		}
+	}
+}
+?>

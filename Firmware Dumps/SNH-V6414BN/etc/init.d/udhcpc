@@ -1,0 +1,116 @@
+#!/bin/sh
+
+# callsyntax: $0 $1=INTERFACE $2=OP
+
+INTERFACE=$1
+OP=$2
+SERVICE_NAME="udhcpc"
+SERVICE_PATH="/tmp/$SERVICE_NAME"
+LOG_PREFIX="$SERVICE_NAME($INTERFACE):"
+NOTIFY_PATH="$SERVICE_PATH/$INTERFACE"
+ACTION_PATH="$SERVICE_PATH/udhcpc_action.$INTERFACE.sh"
+EXEC="udhcpc -- -i $INTERFACE -t 10 -T 10 -a -s $ACTION_PATH -R -S"
+
+if [ ! -d $SERVICE_PATH ]; then
+    mkdir $SERVICE_PATH
+fi
+
+start() {
+    if [ ! -x $ACTION_PATH ]; then
+        cp -f /etc/udhcpc/udhcpc_action.sh $ACTION_PATH
+    fi
+
+    touch $SERVICE_PATH/running
+    start-stop-daemon -S -q -x $EXEC
+    case $? in
+        0)
+            [ -f $SERVICE_PATH/running ] && echo -e "\033[32m$LOG_PREFIX started\033[0m"
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            network_notifier $NOTIFY_PATH "failed"
+            ;;
+    esac
+}
+
+stop() {
+    rm $SERVICE_PATH/running
+    if [ "$(ifconfig | grep $INTERFACE)" != "" ]; then
+    start-stop-daemon -K -q -x $EXEC
+    case $? in
+        0)
+                sleep 1
+                echo -e "\033[32m$LOG_PREFIX released\033[0m"
+                ifconfig $INTERFACE
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            ;;
+    esac
+    fi
+    if [ -x $ACTION_PATH ]; then
+        rm -f $ACTION_PATH
+    fi
+
+    echo -e "\033[33m$LOG_PREFIX setting ip_address 0.0.0.0\033[0m"
+    ifconfig $INTERFACE 0.0.0.0 2> /dev/null
+
+    sleep 1
+
+    network_notifier $NOTIFY_PATH "stopped"
+}
+
+renew() {
+    echo -e "\033[33m$LOG_PREFIX renew\033[0m"
+    start-stop-daemon -K -s USR1 -q -x $EXEC
+    case $? in
+        0)
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            ;;
+    esac
+}
+
+release() {
+    echo -e "\033[33m$LOG_PREFIX release\033[0m"
+    start-stop-daemon -K -s USR2 -q -x $EXEC
+    case $? in
+        0)
+            ;;
+        *)
+            echo -e "\033[31m$LOG_PREFIX failed($?)\033[0m"
+            ;;
+    esac
+}
+
+status() {
+    start-stop-daemon -K -t -q -x $EXEC
+    case $? in
+        0)
+            echo -e "\033[33m$LOG_PREFIX running\033[0m"
+            network_notifier $NOTIFY_PATH "started"
+            ;;
+        *)
+            echo -e "\033[33m$LOG_PREFIX not running($?)\033[0m"
+            network_notifier $NOTIFY_PATH "failed"
+            ;;
+    esac
+}
+
+if [ -z $INTERFACE ]; then
+    echo -e "Usage: $0 interface [start|stop|renew|release|status]"
+    exit 1
+fi
+
+case $OP in
+    start|stop|renew|release|status)
+        $OP
+        ;;
+    *)
+        echo -e "Usage: $0 interface [start|stop|renew|release|status]"
+        exit 1
+        ;;
+esac
+
+exit $?

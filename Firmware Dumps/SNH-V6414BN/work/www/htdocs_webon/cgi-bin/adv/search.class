@@ -1,0 +1,380 @@
+<?php
+define('MAX_RECORD_RESULT',	15);
+
+class SearchRequest
+{
+	public 	$startTime;
+	public 	$endTime;
+	public 	$searchResults;
+	public 	$searchDetailResults;
+
+	public	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+	public	$unpackFormat;
+
+	function __construct()
+	{
+		$this->headerInfo 	= array(	'Command'=>CMD_RECORD_SEARCH, 'Action'=>ACTION_START);
+		$this->dataInfo		= array( 	'StorageType' 	=> array('value'=>0, 'type'=>'i1'),
+											'PageNo' 		=> array('value'=>1, 'type'=>'i1'),
+											'ChannelToken' => array('value'=>0, 'type'=>'i1'),
+											'EventToken'	=> array('value'=>0, 'type'=>'i1'),
+											'Direction' 	=> array('value'=>0, 'type'=>'c1'),
+											'MaxResult' 	=> array('value'=>0, 'type'=>'i1'),
+											'StartKey' 		=> array('value'=>0, 'type'=>'i1'));
+		$this->searchResults 			= new SearchResults();
+		$this->searchDetailResults = new SearchDetailResults();
+		$this->startTime				= new SearchDateTimeFormat();
+		$this->endTime 					= new SearchDateTimeFormat();
+		$this->unpackFormat			=	$this->dataInfo['StorageType']['type'].'StorageType/'.
+												$this->dataInfo['PageNo']['type'].'PageNo/'.
+												$this->dataInfo['ChannelToken']['type'].'ChannelToken/'.
+												$this->dataInfo['EventToken']['type']. 'EventToken/'.
+												'A'.GetDataInfoLength($this->startTime->dataInfo).'/'.
+												'A'.GetDataInfoLength($this->endTime->dataInfo).'/'.
+												$this->dataInfo['Direction']['type'].'Direction/'.
+												$this->dataInfo['MaxResult']['type'].'MaxResult/'.
+												$this->dataInfo['StartKey']['type'].'StartKey';
+	}
+
+	function XMLtoArray($_xmlMsg)
+	{
+		$xmlArray = simplexml_load_string($_xmlMsg);
+		foreach ($xmlArray as $key=>$data) {
+			if 		($key == 'StartTime')	SetData($this->startTime->dataInfo, $this->startTime->payload, $data);
+			else if 	($key == 'EndTime')	SetData($this->endTime->dataInfo, $this->endTime->payload, $data);
+			else									$this->dataInfo[$key]['value'] = $data;
+		}
+		if ($this->headerInfo['Command'] == CMD_RECORD_SEARCH_DETAIL)
+			$this->dataInfo['MaxResult']['value'] = MAX_RECORD_RESULT;
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		if ($this->headerInfo['Command'] == CMD_RECORD_SEARCH)	SetData($this->searchResults->dataInfo, $this->searchResults->payload, $_payload);
+		else																	$this->searchDetailResults->UnpackData($_payload);
+	}
+
+	function SetPayload()
+	{
+		$this->payload =	pack($this->dataInfo['StorageType']['type'], $this->dataInfo['StorageType']['value']).
+								pack($this->dataInfo['PageNo']['type'], $this->dataInfo['PageNo']['value']).
+								pack($this->dataInfo['ChannelToken']['type'], $this->dataInfo['ChannelToken']['value']).
+								pack($this->dataInfo['EventToken']['type'], 	 $this->dataInfo['EventToken']['value']).
+								$this->startTime->payload.$this->endTime->payload.
+								pack($this->dataInfo['Direction']['type'], $this->dataInfo['Direction']['value']).
+								pack($this->dataInfo['MaxResult']['type'],	 $this->dataInfo['MaxResult']['value']).
+								pack($this->dataInfo['StartKey']['type'],	 $this->dataInfo['StartKey']['value']);
+	}
+
+	function GetXMLData()
+	{
+		$cnt = 0;
+		$resultCount = $this->searchDetailResults->dataInfo['ResultCount']['value'];
+
+		$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+		$msg .= '<SearchResult>'."\n";
+		$msg .= "\t".'<TotalCount>'.$this->searchResults->dataInfo['ResultCount']['value'].'</TotalCount>'."\n";		
+		for ($index = 0; $index<$resultCount; ++$index) {
+			$resultData = $this->searchDetailResults->results[$index];
+			if ($resultData->dataInfo['DBIndex']['value'] == 0) continue;
+			$cnt++;
+			$msg .= "\t".'<Result>'."\n";
+			$msg .= "\t\t".'<StartTime>';
+			$msg .= $resultData->startTime->dataInfo['Year']['value']."/".$resultData->startTime->dataInfo['Month']['value']."/".$resultData->startTime->dataInfo['Day']['value']." ";
+			if($resultData->startTime->dataInfo['Hour']['value'] < 10){
+				$msg .= '0'.$resultData->startTime->dataInfo['Hour']['value'].":";
+			} else {
+				$msg .= $resultData->startTime->dataInfo['Hour']['value'].":";
+			}
+			if($resultData->startTime->dataInfo['Min']['value'] < 10){
+				$msg .= '0'.$resultData->startTime->dataInfo['Min']['value'].":";
+			} else {
+				$msg .= $resultData->startTime->dataInfo['Min']['value'].":";
+			}
+			if($resultData->startTime->dataInfo['Sec']['value'] < 10){
+				$msg .= '0'.$resultData->startTime->dataInfo['Sec']['value'];
+			} else {
+				$msg .= $resultData->startTime->dataInfo['Sec']['value'];
+			}
+			$msg .= "\t\t".'</StartTime>'."\n";
+			$msg .= "\t\t".'<EndTime>';
+			$msg .= $resultData->endTime->dataInfo['Year']['value']."/".$resultData->endTime->dataInfo['Month']['value']."/".$resultData->endTime->dataInfo['Day']['value']." ";
+			if($resultData->endTime->dataInfo['Hour']['value'] <10){
+				$msg .= '0'.$resultData->endTime->dataInfo['Hour']['value'].":";
+			} else {
+				$msg .= $resultData->endTime->dataInfo['Hour']['value'].":";
+			}
+			if($resultData->endTime->dataInfo['Min']['value'] <10){
+				$msg .= '0'.$resultData->endTime->dataInfo['Min']['value'].":";
+			} else {
+				$msg .= $resultData->endTime->dataInfo['Min']['value'].":";
+			}
+			if($resultData->endTime->dataInfo['Sec']['value'] <10){
+				$msg .= '0'.$resultData->endTime->dataInfo['Sec']['value'];
+			} else {
+				$msg .= $resultData->endTime->dataInfo['Sec']['value'];
+			}
+			$msg .= "\t\t".'</EndTime>'."\n";
+			$msg .= "\t\t".'<Encoding>'.$resultData->dataInfo['Encoding']['value'].'</Encoding>'."\n";
+			$msg .= "\t\t".'<Width>'.$resultData->dataInfo['Width']['value'].'</Width>'."\n";
+			$msg .= "\t\t".'<Height>'.$resultData->dataInfo['Height']['value'].'</Height>'."\n";
+			$msg .= "\t\t".'<Key>'.$resultData->dataInfo['Key']['value'].'</Key>'."\n";
+			$msg .= "\t\t".'<DBIndex>'.$resultData->dataInfo['DBIndex']['value'].'</DBIndex>'."\n";
+			$msg .= "\t".'</Result>'."\n";
+		}
+		$msg .= "\t".'<ResultCount>'.$cnt.'</ResultCount>'."\n";
+		$msg .= '</SearchResult>';
+		return $msg;
+	}
+}
+
+class SearchResults
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array('StorageType' 	=> array('value'=>0, 'type'=>'i1'),
+										'PageNo' 		=> array('value'=>1, 'type'=>'i1'),
+										'ChannelToken' => array('value'=>0, 'type'=>'i1'),
+										'EventToken'	=> array('value'=>0, 'type'=>'i1'),
+										'ResultCount'	=> array('value'=>0, 'type'=>'i1'));
+	}
+}
+
+class SearchDetailResults
+{
+	public $results;
+
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array('StorageType' 	=> array('value'=>0, 'type'=>'i1'),
+										'PageNo' 		=> array('value'=>1, 'type'=>'i1'),
+										'ChannelToken' => array('value'=>0, 'type'=>'i1'),
+										'EventToken'	=> array('value'=>0, 'type'=>'i1'),
+										'ResultCount'	=> array('value'=>0, 'type'=>'i1'));
+	}
+
+	function UnpackData($_payload)
+	{
+		$dataArray = unpack(MakeDataFormat($this->dataInfo)."c*", $_payload);
+
+		$this->dataInfo['StorageType']['value'] 	= $dataArray['StorageType'];
+		$this->dataInfo['PageNo']['value'] 	= $dataArray['PageNo'];
+		$this->dataInfo['ChannelToken']['value'] 	= $dataArray['ChannelToken'];
+		$this->dataInfo['EventToken']['value'] 		= $dataArray['EventToken'];
+		$this->dataInfo['ResultCount']['value'] 	= $dataArray['ResultCount'];
+
+		$resultCount = $dataArray['ResultCount'];
+		$unpackFormat = MakeDataFormat($this->dataInfo);
+		for ($index=0; $index<$resultCount; ++$index)
+		{
+			$this->results[$index] = new RecordingResult();
+			$unpackFormat .= 'A'.$this->results[$index]->payloadLength.'results'.$index."/";
+		}
+
+		$dataArray = unpack($unpackFormat, $_payload);
+		for ($index=0; $index<$resultCount; ++$index)
+		{
+			$this->results[$index]->UnpackData($dataArray['results'.$index]);
+		}
+	}
+}
+
+class RecordingResult
+{
+	public 	$startTime;
+	public 	$endTime;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$unpackFormat;
+	public 	$payloadLength;
+
+	function __construct()
+	{
+		$this->dataInfo		= array( 'ContentSize'	=> array('value'=>0, 'type'=>'i1'),
+											'Encoding'		=> array('value'=>0, 'type'=>'c1'),
+											'Width'			=> array('value'=>0, 'type'=>'i1'),
+											'Height' 		=> array('value'=>0, 'type'=>'i1'),
+											'DBIndex' 		=> array('value'=>0, 'type'=>'i1'),
+											'Key' 			=> array('value'=>0, 'type'=>'i1'));
+		$this->startTime		= new SearchDateTimeFormat();
+		$this->endTime 			= new SearchDateTimeFormat();
+		$this->payloadLength	= (GetDataInfoLength($this->startTime->dataInfo)*2)+GetDataInfoLength($this->dataInfo);
+		$this->unpackFormat	=	'A'.GetDataInfoLength($this->startTime->dataInfo).'startTime/'.
+										'A'.GetDataInfoLength($this->endTime->dataInfo).'endTime/'.
+										MakeDataFormat($this->dataInfo);
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$_dataArray = unpack("i6startTime/i6endTime/".MakeDataFormat($this->dataInfo), $_dataArray);
+
+		$this->startTime->dataInfo['Year']['value'] 	= $_dataArray['startTime1'];
+		$this->startTime->dataInfo['Month']['value'] 	= $_dataArray['startTime2'];
+		$this->startTime->dataInfo['Day']['value'] 	= $_dataArray['startTime3'];
+		$this->startTime->dataInfo['Hour']['value'] 	= $_dataArray['startTime4'];
+		$this->startTime->dataInfo['Min']['value'] 	= $_dataArray['startTime5'];
+		$this->startTime->dataInfo['Sec']['value'] 	= $_dataArray['startTime6'];
+
+		$this->endTime->dataInfo['Year']['value'] 		= $_dataArray['endTime1'];
+		$this->endTime->dataInfo['Month']['value'] 	= $_dataArray['endTime2'];
+		$this->endTime->dataInfo['Day']['value'] 		= $_dataArray['endTime3'];
+		$this->endTime->dataInfo['Hour']['value'] 		= $_dataArray['endTime4'];
+		$this->endTime->dataInfo['Min']['value'] 		= $_dataArray['endTime5'];
+		$this->endTime->dataInfo['Sec']['value'] 		= $_dataArray['endTime6'];
+
+		$this->dataInfo['ContentSize']['value']			= $_dataArray['ContentSize'];
+		$this->dataInfo['Encoding']['value']				= $_dataArray['Encoding'];
+		$this->dataInfo['Width']['value']					= $_dataArray['Width'];
+		$this->dataInfo['Height']['value']				= $_dataArray['Height'];
+		$this->dataInfo['Key']['value']					= $_dataArray['Key'];
+		$this->dataInfo['DBIndex']['value']				= $_dataArray['DBIndex'];
+	}
+}
+
+class RecordBackupRequest
+{
+	public 	$startTime;
+	public 	$endTime;
+	public	$dbIndex;
+	public 	$recordBackupResponse;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		set_time_limit(0);
+
+		$this->headerInfo 	= array( 'Command'=>CMD_RECORD_BACKUP, 'Action'=>$_action);
+		$this->dataInfo		= array( 	'StorageToken' => array('value'=>'', 'type'=>'A8'),
+											'ChannelToken' => array('value'=>0, 'type'=>'i1'));
+		$this->startTime				= new SearchDateTimeFormat();
+		$this->endTime 					= new SearchDateTimeFormat();
+		$this->recordBackupResponse	= new RecordBackupResponse();
+
+		header("Content-Type: multipart/form-data;"); //multipart/x-mixed-replace
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $data=>$value)
+		{
+			if ($data == 'StartTime')
+			{
+				SetData($this->startTime->dataInfo, $this->startTime->payload, $value);
+			}
+			else if ($data == 'EndTime')
+			{
+				SetData($this->endTime->dataInfo, $this->endTime->payload, $value);
+			}
+			else if ($data == 'DBIndex')
+			{
+				$this->dbIndex = $value;
+			}
+			else
+			{
+				$this->dataInfo[$data]['value'] = $value;
+			}
+		}
+
+		$this->headerInfo['Action'] = ACTION_GET;
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$this->recordBackupResponse->UnpackData($_payload);
+	}
+
+	function PayloadToData($_payload, $_payloadLength)
+	{
+		$dataLength = $_payloadLength - 1;
+		$dataArray = unpack("c1continue/A".$dataLength."data", $_payload);
+
+		echo $dataArray['data'];;
+		flush();
+
+		return ($dataArray['continue'] ? TRUE : FALSE);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).$this->startTime->payload.$this->endTime->payload;
+		$this->payload .= pack('i1', $this->dbIndex).pack('a8', '');
+	}
+}
+
+class RecordBackupResponse
+{
+	public 	$dataLength;
+	public 	$startTime;
+	public 	$endTime;
+	public 	$port;
+
+	public 	$dataInfo;
+	public 	$payload;
+	public	$unpackFormat = '';
+
+	function __construct()
+	{
+		$this->dataInfo 		= array( 'StorageToken' => array('value'=>'', 'type'=>'A8'),
+												'ChannelToken' => array('value'=>0, 'type'=>'i1'));
+		$this->startTime		= new SearchDateTimeFormat();
+		$this->endTime 			= new SearchDateTimeFormat();
+		$this->unpackFormat	=	MakeDataFormat($this->dataInfo).
+										'A'.GetDataInfoLength($this->startTime->dataInfo).'startTime/'.
+										'A'.GetDataInfoLength($this->endTime->dataInfo).'endTime/'.'i1'.'Port';
+	}
+
+	function UnpackData($_payload) {}
+}
+
+class SearchDateTimeFormat
+{
+	public	$payload;
+	public  	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Year'	=> array('value'=>0, 	'type'=>'i1'),
+										'Month'	=> array('value'=>0, 	'type'=>'i1'),
+										'Day'		=> array('value'=>0, 	'type'=>'i1'),
+										'Hour'	=> array('value'=>0, 	'type'=>'i1'),
+										'Min'		=> array('value'=>0, 	'type'=>'i1'),
+										'Sec'		=> array('value'=>0, 	'type'=>'i1'));
+	}
+
+	function InitData()
+	{
+		$this->dataInfo['Year']['value'] = 0;
+		$this->dataInfo['Month']['value'] = 0;
+		$this->dataInfo['Day']['value'] = 0;
+		$this->dataInfo['Hour']['value'] = 0;
+		$this->dataInfo['Min']['value'] = 0;
+		$this->dataInfo['Sec']['value'] = 0;
+		$this->payload = MakePayload($this->dataInfo);
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = '<DateTime>'."\r\n";
+		foreach ($this->dataInfo as $name=>$value) {
+			$msg .= "\t".'<'.$name.'>'.$value['value'].'</'.$name.'>'."\r\n";
+		}
+		$msg .= '</DateTime>'."\r\n";
+		return $msg;
+	}
+}
+?>

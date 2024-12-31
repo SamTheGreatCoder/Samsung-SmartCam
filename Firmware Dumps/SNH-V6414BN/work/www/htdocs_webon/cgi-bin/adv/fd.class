@@ -1,0 +1,310 @@
+<?php
+define('MAX_FD_OBJECT', 		4);
+define('MAX_FDAREA_POINT', 	4);
+define('MAX_SMARTCODEC_AREA', 5);
+
+require_once ('event_common.class');
+
+class FDConfiguration
+{
+	public	$objectConf;
+	public	$schedule;
+
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+	public	$unpackFormat;
+	public	$payloadLength;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_FD_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo		= array(	'Enabled'			=> array('value'=>0, 'type'=>'c1'),
+											'Overlay'			=> array('value'=>0, 'type'=>'c1'),
+											'FDBoxDisplay' 	=> array('value'=>0, 'type'=>'c1'),
+											'Sensitivity'		=> array('value'=>0, 'type'=>'c1'),
+											'ObjectMode'		=> array('value'=>0, 'type'=>'c1'));
+		for ($index=0; $index<MAX_FD_OBJECT; ++$index)
+		{
+			$this->objectConf[$index] = new FDObjectConfiguration();
+		}
+		$this->schedule = new EventSchedule();
+		$this->action 	 = new EventAction();
+		$this->unpackFormat	=	'A'.GetDataInfoLength($this->dataInfo).'fdInfo/'.
+										MakeUnpackFormat('ObjectConfiguration', $this->objectConf[0]->payloadLength, MAX_FD_OBJECT).
+										'A'.$this->schedule->payloadLength.'Schedule'.'/'.
+										'A'.$this->action->payloadLength.'Action';
+		$this->payloadLength =	GetDataInfoLength($this->dataInfo)+($this->objectConf[0]->payloadLength*MAX_FD_OBJECT)+
+										$this->schedule->payloadLength+$this->action->payloadLength;
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach($GLOBALS['XMLArray'] as $name=>$value)
+		{
+			if (substr($name, 0, -1) == 'ObjectArea')
+			{
+				$areaIndex = (int)substr($name, -1);
+				$this->objectConf[$areaIndex]->ParserXML($value);
+			}
+			else if ($name== 'Schedule')
+			{
+				$this->schedule->ParserXML($value);
+			}
+			else if 	($name == 'Action')
+			{
+				$this->action->ParserXML($value);
+			}
+			else
+			{
+				$this->dataInfo[$name]['value'] = $value;
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		SetData($this->dataInfo, $this->payload, $dataArray['fdInfo']);
+
+		for ($index=0; $index<MAX_FD_OBJECT; ++$index)
+		{
+			$this->objectConf[$index]->UnpackData($dataArray['ObjectConfiguration'.$index]);
+		}
+		$this->schedule->UnpackData($dataArray['Schedule']);
+		$this->action->UnpackData($dataArray['Action']);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->objectConf, MAX_FD_OBJECT).$this->schedule->payload.$this->action->payload;
+	}
+}
+
+class FDObjectConfiguration
+{
+	public	$fdPoint;
+	public	$payload;
+	public	$dataInfo;
+	public	$unpackFormat;
+	public	$payloadLength;
+
+	function __construct()
+	{
+		$this->dataInfo	= array( 'NumPoint'	=> array('value'=>0, 'type'=>'c1'),
+										'Index'		=> array('value'=>0, 'type'=>'c1'),
+										'Reserved'	=> array('value'=>0, 'type'=>'A7'));
+		for ($index=0; $index<MAX_FDAREA_POINT; ++$index)
+		{
+			$this->fdPoint[$index] = new FDPoint();
+		}
+		$this->unpackFormat =	'c1'.'NumPoint'.'/'.
+										MakeUnpackFormat('FDPoint', GetDataInfoLength($this->fdPoint[0]->dataInfo), MAX_FDAREA_POINT).
+										'c1'.'Index'.'/'.
+										'A7'.'Reserved';
+		$this->payloadLength = GetDataInfoLength($this->dataInfo)+(GetDataInfoLength($this->fdPoint[0]->dataInfo)*MAX_FDAREA_POINT);
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$dataArray = unpack($this->unpackFormat, $_dataArray);
+		$this->dataInfo['NumPoint']['value'] = $dataArray['NumPoint'];
+		$this->dataInfo['Index']['value']	= $dataArray['Index'];
+		$this->dataInfo['Reserved']['value'] = $dataArray['Reserved'];
+
+		for ($index=0; $index<MAX_FDAREA_POINT; ++$index)
+		{
+			SetData($this->fdPoint[$index]->dataInfo, $this->fdPoint[$index]->payload, $dataArray['FDPoint'.$index]);
+		}
+		$this->SetPayload();
+	}
+
+	function ParserXML($_xmlData)
+	{
+		for ($index=0; $index<MAX_FDAREA_POINT; ++$index)
+		{
+			$this->fdPoint[$index]->Init();
+		}
+
+		foreach($_xmlData as $name=>$data)
+		{
+			if ($name == 'NumPoint' || $name == 'Index')
+			{
+				$this->dataInfo[$name]['value'] = $data;
+			}
+			else
+			{
+				$index = (int)substr($name, -1);
+				SetData($this->fdPoint[$index]->dataInfo, $this->fdPoint[$index]->payload, $data);
+			}
+
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = pack('c1', $this->dataInfo['NumPoint']['value']).GetPayloads($this->fdPoint, MAX_FDAREA_POINT).pack('c1', $this->dataInfo['Index']['value']).pack('a7', $this->dataInfo['Reserved']['value']);
+	}
+
+	function InitData()
+	{
+		$this->dataInfo	= array( 'NumPoint'	=> array('value'=>0, 'type'=>'c1'),
+										'Index'		=> array('value'=>0, 'type'=>'c1'),
+										'Reserved'	=> array('value'=>0, 'type'=>'A7'));
+
+		for ($index=0; $index<MAX_FDAREA_POINT; ++$index)
+		{
+			$this->fdPoint[$index]->Init();
+		}
+	}
+}
+
+class FDPoint
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo	= array( 'PosX' => array('value'=>0, 'type'=>'i1'),
+										'PosY' => array('value'=>0, 'type'=>'i1'));
+	}
+
+	function Init()
+	{
+		$this->dataInfo	= array( 'PosX' => array('value'=>0, 'type'=>'i1'),
+										'PosY' => array('value'=>0, 'type'=>'i1'));
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+class SmartCodecConfiguration
+{
+	public 	$smartCodecArea;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command' =>CMD_SMARTCODEC, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Mode'			=> array('value'=>0, 'type'=>'c1'),
+											'QualityLevel'	=>	array('value'=>0, 'type'=>'c1'),
+											'FDSensitivity'=>	array('value'=>0, 'type'=>'c1'),
+											'Reserved'		=> array('value'=>'', 'type'=>'A127'));
+
+		for ($index=0; $index<MAX_SMARTCODEC_AREA; ++$index)
+		{
+			$this->smartCodecArea[$index] = new SmartCodecArea();
+		}
+
+		$this->unpackFormat = 'c1'.'Mode/'.'c1'.'QualityLevel/'.
+									MakeUnpackFormat('smartCodecArea', GetDataInfoLength($this->smartCodecArea[0]->dataInfo), MAX_SMARTCODEC_AREA).
+									'c1'.'FDSensitivity/'.'A127'.'Reserved';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		$areaCnt = 0;
+		foreach ($xmlArray as $name=>$data)
+		{
+			if (substr($name, 0, -1) == 'SmartCodecArea')
+			{
+				SetData($this->smartCodecArea[$areaCnt]->dataInfo, $this->smartCodecArea[$areaCnt]->payload, $data);
+				$areaCnt++;
+			}
+			else
+			{
+				$this->dataInfo[$name]['value'] = $data;
+			}
+		}
+
+		for ($index=$areaCnt; $index<MAX_SMARTCODEC_AREA; ++$index)
+		{
+			$this->smartCodecArea[$index]->InitData();
+		}
+
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		$this->dataInfo['Mode']['value'] = $dataArray['Mode'];
+		$this->dataInfo['QualityLevel']['value'] = $dataArray['QualityLevel'];
+		$this->dataInfo['FDSensitivity']['value'] = $dataArray['FDSensitivity'];
+		$this->dataInfo['Reserved']['value'] = $dataArray['Reserved'];
+		for ($index=0; $index<MAX_SMARTCODEC_AREA; ++$index)
+		{
+			SetData($this->smartCodecArea[$index]->dataInfo, $this->smartCodecArea[$index]->payload, $dataArray['smartCodecArea'.$index]);
+		}
+	}
+	
+	function GetXMLData()
+	{
+		$msg = '';
+		$msg .= "<SmartCodecConfiguration>";
+		for ($index=0; $index<MAX_SMARTCODEC_AREA; ++$index) {
+			if ($this->smartCodecArea[$index]->dataInfo['Enabled']['value'] >= 1 ) {
+				$msg .= "<SmartCodecArea".$index.">";
+				$msg .= $this->smartCodecArea[$index]->GetXMLData();
+				$msg .= "</SmartCodecArea".$index.">";
+			}
+		}
+		$msg .= "</SmartCodecConfiguration>";
+		return $msg;
+	}
+	
+	function SetPayload()
+	{
+		$this->payload = 	pack('c1', $this->dataInfo['Mode']['value']).
+								pack('c1', $this->dataInfo['QualityLevel']['value']).
+								GetPayloads($this->smartCodecArea, MAX_SMARTCODEC_AREA).
+								pack('c1', $this->dataInfo['FDSensitivity']['value']).
+								pack('A127', $this->dataInfo['Reserved']['value']);
+	}
+}
+
+class SmartCodecArea
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Enabled'		=> array('value'=>0, 'type'=>'c1'),
+										'Reserved'		=> array('value'=>'', 'type'=>'A3'),
+										'AreaBottom'	=> array('value'=>0, 'type'=>'i1'),
+										'AreaTop'		=> array('value'=>0, 'type'=>'i1'),
+										'AreaRight'		=> array('value'=>0, 'type'=>'i1'),
+										'AreaLeft'		=> array('value'=>0, 'type'=>'i1'));
+	}
+	function GetXMLData()
+	{
+		$msg = '';
+		$msg .= "<Enabled>".$this->dataInfo['Enabled']['value']."</Enabled>";
+		$msg .= "<AreaBottom>".$this->dataInfo['AreaBottom']['value']."</AreaBottom>";
+		$msg .= "<AreaTop>".$this->dataInfo['AreaTop']['value']."</AreaTop>";
+		$msg .= "<AreaRight>".$this->dataInfo['AreaRight']['value']."</AreaRight>";
+		$msg .= "<AreaLeft>".$this->dataInfo['AreaLeft']['value']."</AreaLeft>";
+		
+		return $msg;
+	}
+	function InitData()
+	{
+		$this->dataInfo['Enabled']['value']		= 0;
+		$this->dataInfo['AreaBottom']['value'] 	= 0;
+		$this->dataInfo['AreaTop']['value'] 		= 0;
+		$this->dataInfo['AreaRight']['value'] 	= 0;
+		$this->dataInfo['AreaLeft']['value'] 	= 0;
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+?>

@@ -1,0 +1,340 @@
+<?php
+
+class EventSchedule
+{
+	public 	$enabled;
+	public 	$dayTime;
+	public	$dayDetail;
+	
+	public 	$payload;
+	public	$unpackFormat;
+	public 	$payloadLength;
+
+	function __construct()
+	{
+		$this->dayTime = array();
+		$this->dayDetail = array();
+		
+		for ($index=0; $index<7; ++$index) {
+			$this->dayTime[$index] = new DayTime();
+			$this->dayDetail[$index] = new DayDetail();
+		}
+		
+		$this->payloadLength	= 1+(7*24)+(7*24*3);
+		$this->unpackFormat 	= 'c1'.'Enabled/'.MakeUnpackFormat('dayTime', 24, 7).MakeUnpackFormat('dayDetail', 72, 7);
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$_dataArray .= '  ';		//공백 : array 마지막 문자가 32 일경우 unpack 에러 방어코드
+		$dataArray = unpack($this->unpackFormat, $_dataArray);
+		$this->enabled = $dataArray['Enabled'];
+		
+		for ($index=0; $index<7; ++$index) {
+			$this->dayTime[$index]->UnpackData($dataArray['dayTime'.$index]);
+			$this->dayDetail[$index]->UnpackData($dataArray['dayDetail'.$index]);
+		}
+		$this->SetPayload();  // 없으면 안됨 ( schedule 의 payload 길이 생성)
+	}
+
+	function ParserXML($_xmlData)
+	{
+		for ($index=0; $index<7; ++$index) {
+			$this->dayTime[$index]->Init();
+			$this->dayDetail[$index]->Init();
+		}
+	
+		foreach($_xmlData as $name=>$data) {
+			if ($name == 'Enabled') {
+				$this->enabled = $data;
+			}
+			else {
+				$index = (int)substr($name, -1);
+				$this->dayTime[$index]->ParserXML($data);
+				$this->dayDetail[$index]->ParserXML($data);
+			}
+		}
+		
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{	
+		$this->payload = pack('c1', $this->enabled).GetPayloads($this->dayTime, 7).GetPayloads($this->dayDetail, 7);
+	}
+}
+
+class DayTime
+{
+	public 	$time;
+
+	public 	$payload = '';
+	public	$unpackFormat = '';
+
+	function __construct()
+	{
+		$this->time = array();
+		for ($index=0; $index<24; ++$index) {
+			$this->unpackFormat .= 'c1time'.$index.'/';
+		}
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$dataArray = unpack($this->unpackFormat, $_dataArray);
+
+		for ($index=0; $index<24; ++$index){
+			$this->time[$index] = $dataArray['time'.$index];
+		}
+		$this->SetPayload();
+	}
+
+	function ParserXML($_xmlData)
+	{
+		foreach ($_xmlData as $name=>$value) {
+			if (substr($name, 0, 1) == 'H') {
+				$index = (int)substr($name, 1);
+				$this->time[$index] = $value;
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = '';
+		for ($index=0; $index<24; ++$index)
+			$this->payload .= pack('c1', $this->time[$index]);
+	}
+
+	function Init()
+	{
+		for ($index=0; $index<24; ++$index)
+			$this->time[$index] = 0;
+		$this->SetPayload();
+	}
+}
+
+class DayDetail
+{
+	public	$detailTime;
+	
+	public 	$payload = '';
+	public	$unpackFormat = '';
+
+	function __construct()
+	{
+		$this->detailTime = array();
+
+		for ($index=0; $index<24; ++$index) {			
+			$this->detailTime[$index] = new MinUnit();
+			$this->unpackFormat .= 'c1isEnabled'.$index.'/'.'c1from'.$index.'/'.'c1to'.$index.'/';	
+		}
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$_dataArray .= '  ';		//공백 : array 마지막 문자가 32 일경우 unpack 에러 방어코드
+		$dataArray = unpack($this->unpackFormat, $_dataArray);
+			
+		for ($index=0; $index<24; ++$index){
+			$this->detailTime[$index]->dataInfo['isEnabled']['value'] = $dataArray['isEnabled'.$index];
+			$this->detailTime[$index]->dataInfo['from']['value'] = $dataArray['from'.$index];
+			$this->detailTime[$index]->dataInfo['to']['value'] = $dataArray['to'.$index];
+		}
+		
+		$this->SetPayload();
+	}
+	
+	function ParserXML($_xmlData)
+	{
+		foreach ($_xmlData as $name=>$value) {
+			if (substr($name, 0, 9) == 'IsEnabled') {
+				$index = (int)substr($name, 9);
+				$this->detailTime[$index]->dataInfo['isEnabled']['value'] = $value;
+			}
+			else if(substr($name, 0, 4) == 'From') {
+				$index = (int)substr($name, 4);
+				$this->detailTime[$index]->dataInfo['from']['value'] = $value;
+			}
+			else if(substr($name, 0, 2) == 'To') {
+				$index = (int)substr($name, 2);
+				$this->detailTime[$index]->dataInfo['to']['value'] = $value;
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = '';
+		for ($index=0; $index<24; ++$index){
+			$this->detailTime[$index]->SetPayload();
+			$this->payload .= $this->detailTime[$index]->payload;
+		}
+	}
+	
+	function Init()
+	{
+		for ($index=0; $index<24; ++$index) {
+			$this->detailTime[$index]->Init();
+		}
+		$this->SetPayload();
+	}
+}
+
+class MinUnit
+{
+	public	$dataInfo;
+	
+	public 	$payload = '';
+	public	$unpackFormat = '';
+
+	function __construct()
+	{
+		$this->dataInfo = array('isEnabled' 	=> array('value'=>0, 'type'=>'c1'),
+								'from' 	=> array('value'=>0, 'type'=>'c1'),
+								'to' 	=> array('value'=>59, 'type'=>'c1'));		
+	}
+
+	function SetPayload()
+	{
+		$this->payload = '';
+		$this->payload = MakePayload($this->dataInfo);
+	}
+	
+	function Init()
+	{
+		$this->dataInfo['isEnabled']['value'] = 0;
+		$this->dataInfo['from']['value'] = 0;
+		$this->dataInfo['to']['value'] = 59;
+
+		$this->SetPayload();
+	}
+}
+
+// DEV_S1SMS
+class EventAction
+{
+	public	$relayOutput;
+
+	public 	$payload;
+	public	$dataInfo;
+	public	$unpackFormat;
+	public 	$payloadLength;
+
+	function __construct()
+	{
+			
+		$this->dataInfo = array('FTPSending' 	=> array('value'=>0, 'type'=>'c1'),
+										'SMTPSending' 	=> array('value'=>0, 'type'=>'c1'),
+										'Record' 		=> array('value'=>0, 'type'=>'c1'),
+										'GotoPreset'	=> array('value'=>0, 'type'=>'i1'),
+										'SMSSending'	=> array('value'=>0, 'type'=>'c1'), // DEV_S1SMS
+										'Reserved' 		=> array('value'=>0, 'type'=>'A11'));
+		$this->relayOutput 	= array();
+		$this->unpackFormat 	= 'c1RelayOutput0/c1RelayOutput1/c1RelayOutput2/c1RelayOutput3/'.MakeDataFormat($this->dataInfo);
+		$this->payloadLength = 4+GetDataInfoLength($this->dataInfo);
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$dataArray = unpack($this->unpackFormat, $_dataArray);
+		for ($index=0; $index<4; ++$index) {
+			$this->relayOutput[$index] = $dataArray['RelayOutput'.$index];
+		}
+		$this->dataInfo['FTPSending']['value'] = $dataArray['FTPSending'];
+		$this->dataInfo['SMTPSending']['value']= $dataArray['SMTPSending'];
+		$this->dataInfo['Record']['value'] 		= $dataArray['Record'];
+		$this->dataInfo['GotoPreset']['value'] = $dataArray['GotoPreset'];
+		if ($GLOBALS['M_SPECIAL_TYPE'] == 1)
+		{
+			$this->dataInfo['SMSSending']['value'] = $dataArray['SMSSending'];	//DEV_S1SMS
+		}
+		$this->dataInfo['Reserved']['value'] 	= $dataArray['Reserved'];
+		$this->SetPayload();
+	}
+
+	function ParserXML($_xmlMsg)
+	{
+		foreach ($_xmlMsg as $name=>$value)
+		{
+			if ($name == 'AlarmOutput' || substr($name, 0, -1) == 'AlarmOutput')
+			{
+				$outputNo = substr($name, -1);
+				$this->relayOutput[$outputNo] = $value;
+			}
+			else
+			{
+				$this->dataInfo[$name]['value'] = $value;
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = '';
+		for ($index=0; $index<4; ++$index)
+		{
+			$this->payload .= pack("c1", $this->relayOutput[$index]);
+		}
+		$this->payload .= MakePayload($this->dataInfo);
+	}
+}
+
+class IVObjectSizeManual
+{
+	public 	$payload;
+	public	$dataInfo;
+	
+	function __construct()
+	{
+		$this->dataInfo = array('VSL' 			=> array('value'=>4, 'type'=>'c1'),
+										'VSH' 		=> array('value'=>90, 'type'=>'c1'),
+										'HSL'			=> array('value'=>4, 'type'=>'c1'),
+										'HSH'			=> array('value'=>90, 'type'=>'c1'),
+										'MinWidth'	=> array('value'=>96, 'type'=>'i1'),
+										'MinHeight'	=> array('value'=>96, 'type'=>'i1'),
+										'MaxWidth'	=> array('value'=>972, 'type'=>'i1'),
+										'MaxHeight'	=> array('value'=>972, 'type'=>'i1'));
+	}
+	function UnpackData($_dataArray)
+	{
+		$dataArray = $_dataArray.'    ';
+		SetData($this->dataInfo, $this->payload, $dataArray);
+	}
+}
+
+class ObjectPoint
+{
+	public 	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'PosX' => array('value'=>0, 'type'=>'i1'),
+										'PosY' => array('value'=>0, 'type'=>'i1'));
+	}
+
+	function Init()
+	{
+		$this->dataInfo = array(	'PosX' => array('value'=>0, 'type'=>'i1'),
+										'PosY' => array('value'=>0, 'type'=>'i1'));
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+class TamperingRule
+{
+	public 	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array('Enabled' 		=> array('value'=>0, 'type'=>'c1'),
+										'Sensitivity' 	=> array('value'=>0, 'type'=>'c1'),
+										'Reserved' 		=> array('value'=>0, 'type'=>'A4'));
+	}
+}
+?>

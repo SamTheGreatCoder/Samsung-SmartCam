@@ -1,0 +1,195 @@
+<?php
+
+class PTZMove
+{
+	public 	$ptzSpeed;
+	public 	$timeout = 0;
+
+	public 	$ptzPosition;
+	public	$payload;
+	public	$unpackFormat;
+	public	$payloadLength;
+
+	function __construct($_command)
+	{
+		$this->headerInfo		= array('Command'=>$_command, 'Action'=>ACTION_START);
+		$this->ptzPosition		= new PTZMovePosition();
+		$this->ptzSpeed 		= new PTZMoveSpeed();
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->ptzPosition->dataInfo).'ptzPosition/'.
+										'A'.GetDataInfoLength($this->ptzSpeed->dataInfo).'ptzSpeed/'.
+										'i1timeout';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach($xmlArray as $name=>$value)
+		{
+			if ($name == 'PTZPosition')
+			{
+				$this->ptzPosition->ParserXML($this->headerInfo['Command'], $_menu, $value);
+			}
+			else if ($name == 'PTZSpeed')
+			{
+				SetData($this->ptzSpeed->dataInfo, $this->ptzSpeed->payload, $value);
+			}
+			else if ($name == 'TimeOut')
+			{
+				$this->timeout = $value;
+			}
+		}
+
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = $this->ptzPosition->payload.$this->ptzSpeed->payload.pack('i1', $this->timeout);
+	}
+}
+
+class PTZStatus
+{
+	public 	$ptzPosition;
+
+	public	$payload;
+	public 	$dataInfo;
+	public	$headerInfo;
+	public	$unpackFormat;
+
+	function __construct($_action = ACTION_GET)
+	{
+		$this->headerInfo	= array(	'Command'=>CMD_PTZ_STATUS, 'Action'=>$_action);
+		$this->dataInfo		= array(	'PanTilt'=>	array('value'=>0, 'type'=>'c1'),
+											'Zoom'	=>	array('value'=>0, 'type'=>'c1'),
+											'Error'	=> array('value'=>0, 'type'=>'A32'),
+											'Time'	=> array('value'=>0,  'type'=>'i1'));
+		$this->ptzPosition	= new PTZMovePosition();
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->ptzPosition->dataInfo).'ptzPosition/'.
+										MakeDataFormat($this->dataInfo);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+
+		$this->dataInfo['PanTilt']['value'] = $dataArray['PanTilt'];
+		$this->dataInfo['Zoom']['value'] 		= $dataArray['Zoom'];
+		$this->dataInfo['Error']['value'] 	= $dataArray['Error'];
+		$this->dataInfo['Time']['value'] 		= $dataArray['Time'];
+		SetData($this->ptzPosition->dataInfo, $this->ptzPosition->payload, $dataArray['ptzPosition']);
+	}
+}
+
+
+class PTZMovePosition
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo		= array(	'PanReal'	=>	array('value'=>0, 'type'=>'i1'),
+											'PanNorm'	=>	array('value'=>0, 'type'=>'i1'),
+											'TiltReal'	=>	array('value'=>0, 'type'=>'i1'),
+											'TiltNorm'	=>	array('value'=>0, 'type'=>'i1'),
+											'ZoomReal'	=>	array('value'=>0, 'type'=>'i1'),
+											'ZoomNorm'	=>	array('value'=>0, 'type'=>'i1'),
+											'FocusReal'	=>	array('value'=>0, 'type'=>'i1'),
+											'FocusNorm'	=> array('value'=>0, 'type'=>'i1'));
+		$this->payload 		= MakePayload($this->dataInfo);
+	}
+
+	function ParserXML($_command, $_menu, $_xmlMsg)
+	{
+		foreach ($_xmlMsg as $name=>$value) {
+			if ($_command == CMD_PTZ_ABSMOVE && $name == 'ZoomReal')	$value = $value*100;
+			$this->dataInfo[$name]['value'] = $value;
+		}
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+class PTZMoveSpeed
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo		= array(	'PanReal'	=>	array('value'=>0, 'type'=>'i1'),
+											'PanNorm'	=>	array('value'=>0, 'type'=>'i1'),
+											'TiltReal'	=>	array('value'=>0, 'type'=>'i1'),
+											'TiltNorm'	=>	array('value'=>0, 'type'=>'i1'),
+											'ZoomReal'	=>	array('value'=>4, 'type'=>'i1'),
+											'ZoomNorm'	=>	array('value'=>0, 'type'=>'i1'));
+		$this->payload 		= MakePayload($this->dataInfo);
+	}
+}
+
+class MotorizedLensSetup
+{
+	public	$ptzPosition;
+	public	$focusArea;
+	public	$payload;
+	public 	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action = ACTION_START)
+	{
+		$this->headerInfo	= array(	'Command'=>CMD_MOTORIZED_LENS_SETUP, 'Action'=>$_action);
+		$this->dataInfo		= array(	'Mode'		=>	array('value'=>0, 'type'=>'c1'),
+											'AF'			=> array('value'=>0,  'type'=>'c1'),
+											'Reserved'	=> array('value'=>0,  'type'=>'A15'));
+		$this->ptzPosition	= new PTZMovePosition();
+		$this->focusArea	= new SimpleFocusArea();
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach($xmlArray as $name=>$data)
+		{
+			if ($name == 'PTZ')
+			{
+				SetData($this->ptzPosition->dataInfo, $this->ptzPosition->payload, $data);
+			}
+			else if ($name == 'FocusArea')
+			{
+				SetData($this->focusArea->dataInfo, $this->focusArea->payload, $data);
+			}
+			else
+			{
+				$this->dataInfo[$name]['value'] = $data;
+			}
+		}
+
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = 	pack('c1', $this->dataInfo['Mode']['value']).$this->ptzPosition->payload.
+								pack('c1', $this->dataInfo['AF']['value']).$this->focusArea->payload.
+								pack('A15', $this->dataInfo['Reserved']['value']);
+	}
+}
+
+class SimpleFocusArea
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo		= array(	'Enable'	=>	array('value'=>0, 'type'=>'c1'),
+											'AreaLeft'	=>	array('value'=>0, 'type'=>'i1'),
+											'AreaTop'	=>	array('value'=>0, 'type'=>'i1'),
+											'AreaRight'	=>	array('value'=>0, 'type'=>'i1'),
+											'AreaBottom'	=>	array('value'=>0, 'type'=>'i1'));
+		$this->payload 		= MakePayload($this->dataInfo);
+	}
+}
+?>

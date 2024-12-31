@@ -1,0 +1,79 @@
+<?php
+
+class UPNPConfiguration
+{
+	public $headerInfo;
+	public $dataInfo;
+	public $payload;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array(	'Command'=>CMD_UPNP_DISCOVERY, 'Action'=>$_action);
+		$this->dataInfo 	= array( 	'InterfaceToken' 	=>array('value'=>'', 'type'=>'A64'),
+											'Enabled'			=>array('value'=>'0', 'type'=>'c1'),
+											'FriendlyName'		=>array('value'=>'0', 'type'=>'A64'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class BonjourConfiguration
+{
+	public $headerInfo;
+	public $dataInfo;
+	public $payload;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array(	'Command'=>CMD_BONJOUR, 'Action'=>$_action);
+		$this->dataInfo 	= array( 	'InterfaceToken'		=>array('value'=>'', 'type'=>'A64'),
+											'Enabled'				=>array('value'=>'0', 'type'=>'c1'),
+											'FriendlyName'			=>array('value'=>'0', 'type'=>'A64'));
+											
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class ZeroConfiguration
+{
+	public $headerInfo;
+	public $dataInfo;
+	public $payload;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array(	'Command'=>CMD_ZERO_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'InterfaceToken'	=> array('value'=>'', 'type'=>'A64'),
+											'Enabled'			=> array('value'=>'0', 'type'=>'c1'),
+											'Address'			=>	array('value'=>'', 'type'=>'A40'),
+											'PrefixLength'		=>	array('value'=>0, 'type'=>'i1'));	
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+?>

@@ -1,0 +1,147 @@
+<?php
+
+class SecurityConfiguration
+{
+	public $user;
+	public $payload;
+	public $dataInfo;
+	public $headerInfo;
+	public $unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		for ($index=0; $index<MAX_USER_10; ++$index)
+		{
+			$this->user[$index] = new User();
+		}
+		$this->headerInfo = array('Command'=>CMD_SECURITY_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Enabled' 			=> array('value'=>0, 'type'=>'c1'),
+											'Mode' 				=> array('value'=>0, 'type'=>'c1'),
+											'PublicCertName' 	=> array('value'=>'', 'type'=>'A32'),
+											'Reserved' 			=> array('value'=>'', 'type'=>'A128'));
+		$this->unpackFormat 	= 	MakeUnpackFormat('user', GetDataInfoLength($this->user[0]->dataInfo), MAX_USER_10).
+										'A'.GetDataInfoLength($this->dataInfo).'security';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+		$userIndex = 0;
+		foreach ($xmlArray as $data)
+		{
+			if ($_menu == 'User')
+			{
+				$userIndex = (int)substr($data->GetName(), 4);
+				echo "Index : ".$userIndex."\r\n";
+				SetData($this->user[$userIndex]->dataInfo, $this->user[$userIndex]->payload, $data);
+				$this->user[$userIndex]->dataInfo['Password']['value'] = $this->CheckValidPassword($this->user[$userIndex]->dataInfo['Password']['value']);
+
+				MakePayload($this->user[$userIndex]->dataInfo);
+				$userIndex++;
+			}
+			else {
+				SetData($this->dataInfo, $this->payload, $data);
+			}
+		}
+
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		for ($index=0; $index<MAX_USER_10; ++$index)
+		{
+			SetData($this->user[$index]->dataInfo, $this->user[$index]->payload, $dataArray['user'.$index]);
+		}
+		SetData($this->dataInfo, $this->payload, $dataArray['security']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->user, MAX_USER_10).MakePayload($this->dataInfo);
+	}
+
+	function GetXMLData($_menu)
+	{
+		if ($_menu == 'User')
+		{
+			for ($index=0; $index<MAX_USER_10; ++$index)
+			{
+				$msg .= "\t".'<User'.$index.'>'."\r\n";
+				foreach ($this->user[$index]->dataInfo as $name=>$value)
+				{
+					
+					$msg .= "\t\t".'<'.$name.'>'.$value['value'].'</'.$name.'>'."\r\n";
+				}
+				$msg .= "\t".'</User'.$index.'>'."\r\n";
+			}
+		}
+		else if ($_menu == 'HTTPS')
+		{
+			$msg .= "\t".'<HTTPSMode>'."\r\n";
+			foreach ($this->dataInfo as $name=>$value)
+			{
+				
+				$msg .= "\t\t".'<'.$name.'>'.$value['value'].'</'.$name.'>'."\r\n";
+			}
+			$msg .= "\t".'</HTTPSMode>'."\r\n";
+		}
+		return $msg;
+	}
+
+	function CheckValidPassword($_value)
+	{
+		if ($_value == '' || strpos($_value, '.') != FALSE) {
+			ResponseText(FALSE);
+		}
+
+		if (is_object($_value) == TRUE)		// number checking
+		{
+			$valueString	= strval($_value[0]);
+			$valueLength	= strlen($valueString);
+
+			for ($index=0; $index<$valueLength; ++$index)
+			{
+				$asciiVal = ord(substr($valueString, $index, ($index+1)));
+				$isMatch = FALSE;
+				for ($index2=48; $index2<=122; ++$index2) 				// ascii code 0 ~ 9, A ~ Z, a ~ z
+				{
+					if ($index2 > 57 && $index < 65)	continue;
+					if ($index2 > 90 && $index < 97)	continue;
+					if ($asciiVal == $index2)
+					{
+						$isMatch = TRUE;
+						break;
+					}
+				}
+
+				if ($isMatch == FALSE)
+				{
+					ResponseText(FALSE);
+				}
+			}
+		}
+
+		return $_value;
+	}
+}
+
+class User
+{
+	public $dataInfo;
+	public $payload;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Enabled' 			=> array('value'=>0, 'type'=>'c1'),
+										'Name' 				=> array('value'=>'', 'type'=>'A16'),
+										'Password' 			=> array('value'=>'', 'type'=>'A16'),
+										'Level'				=>	array('value'=>0, 'type'=>'i1'),
+										'UserRightVideo' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightAudio' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightCtrl' 	=> array('value'=>0, 'type'=>'c1'));
+	}
+}
+?>

@@ -1,0 +1,208 @@
+<?php
+
+class HTTPSConfiguration
+{
+	public $payload;
+	public $dataInfo;
+	public $headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array(	'Command'=>CMD_CERTIFICATE, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Enabled' 			=> array('value'=>0, 'type'=>'c1'),
+											'Mode' 				=> array('value'=>0, 'type'=>'c1'),
+											'PublicCertName' 	=> array('value'=>'', 'type'=>'A32'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($payload)
+	{
+		SetData($this->dataInfo, $this->payload, $payload);
+	}
+}
+
+
+class HTTPSData
+{
+	public 	$publicCertName;
+	public 	$certLength;
+	public 	$certData;
+	public 	$keyLength;
+	public 	$keyData;
+	public	$headerInfo;
+    public  $payload;
+
+	function __construct($_action = ACTION_SET)
+	{
+		$this->headerInfo = array('Command'=>CMD_HTTPS_DATA, 'Action'=>$_action);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $name=>$value)
+		{
+			if 		($name == 'PublicCertName')	$this->publicCertName = $value;
+			else if	($name == 'CertLength') 		$this->certLength = $value;
+			else if	($name == 'CertData')			$this->certData = $value;
+			else if	($name == 'KeyLength')		$this->keyLength = $value;
+			else if	($name == 'KeyData') 			$this->keyData = $value;
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = pack('a32', $this->publicCertName);
+
+		if ($this->headerInfo['Action'] == ACTION_SET)
+		{
+			$this->payload .= pack('i1', $this->certLength);
+			$this->payload .= pack('A'.$this->certLength, $this->certData);
+			$this->payload .= pack('i1', $this->keyLength);
+			$this->payload .= pack('A'.$this->keyLength, $this->keyData);
+		}
+	}
+}
+
+class Configuration802Dot1x
+{
+	public	$setting802Dot1x;
+	public 	$certificate802Dot1x;
+
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_802_1X_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Enabled'	=> array('value'=>0, 'type'=>'c1'),
+											'EAPType'	=> array('value'=>0, 'type'=>'c1'),
+                                            'Status'	=> array('value'=>0, 'type'=>'c1'),
+                                            'InterfaceToken'	=> array('value'=>'', 'type'=>'A64'), 
+											'Reserved'	=> array('value'=>'', 'type'=>'A62'));
+		$this->setting802Dot1x 		= new Setting802Dot1x();
+		$this->certificate802Dot1x 	= new Certificate802Dot1x();
+		$this->unpackFormat 	=	'c1'.'Enabled/'.
+										'A'.GetDataInfoLength($this->setting802Dot1x->dataInfo).'setting802Dot1x/'.
+										'A'.GetDataInfoLength($this->certificate802Dot1x->dataInfo).'certificate802Dot1x/'.
+										'c1'.'EAPType/'.
+                                        'c1'.'Status/'.                            
+                                        'A64'.'InterfaceToken/'.
+										'A62'.'Reserved';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $name=>$data)
+		{
+			if ($name == 'Enabled')
+			{
+				$this->dataInfo['Enabled']['value'] = $data;
+			}
+			else if ($name == 'Setting')
+			{
+				SetData($this->setting802Dot1x->dataInfo, $this->setting802Dot1x->payload, $data);
+			}
+			else if ($name == 'Certificate')
+			{
+				SetData($this->certificate802Dot1x->dataInfo, $this->certificate802Dot1x->payload, $data);
+			}
+		}
+
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		$this->dataInfo['Enabled']['value'] 	= $dataArray['Enabled'];
+		$this->dataInfo['EAPType']['value'] 	= $dataArray['EAPType'];
+        $this->dataInfo['Status']['value']	= $dataArray['Status'];
+        $this->dataInfo['InterfaceToken']['value']	= $dataArray['InterfaceToken'];
+		$this->dataInfo['Reserved']['value']	= $dataArray['Reserved'];
+		SetData($this->setting802Dot1x->dataInfo, $this->setting802Dot1x->payload, $dataArray['setting802Dot1x']);
+		SetData($this->certificate802Dot1x->dataInfo, $this->certificate802Dot1x->payload, $dataArray['certificate802Dot1x']);
+	}
+
+	function SetPayload()
+	{
+		$this->payload = 	pack("c1", $this->dataInfo['Enabled']['value']).$this->setting802Dot1x->payload.
+								$this->certificate802Dot1x->payload.pack("c1", $this->dataInfo['EAPType']['value']).pack("c1", $this->dataInfo['Status']['value']).pack("A64", $this->dataInfo['InterfaceToken']['value']).pack("A62", $this->dataInfo['Reserved']['value']);
+	}
+}
+
+class Setting802Dot1x
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo 	= array(	'EapolVersion'			=> array('value'=>0, 'type'=>'c1'),
+											'EapID'					=> array('value'=>'', 'type'=>'A32'),
+											'PrivateKeyPassword'	=> array('value'=>'', 'type'=>'A32'));
+	}
+}
+
+class Certificate802Dot1x
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo 	= array(	'CaCertificate'		=> array('value'=>0, 'type'=>'c1'),
+											'ClientCertificate'	=> array('value'=>0, 'type'=>'c1'),
+											'ClientPrivateKey'	=> array('value'=>0, 'type'=>'c1'));
+	}
+}
+
+class Data802Dot1x
+{
+	public 	$publicCertType;
+	public 	$certLength;
+	public 	$certData;
+	public	$headerInfo;
+    public  $payload;
+
+	function __construct($_action = ACTION_SET)
+	{
+		$this->headerInfo = array('Command'=>CMD_802_1X_DATA, 'Action'=>$_action);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $name=>$value)
+		{
+			if 		($name == 'PublicCertType')	$this->publicCertType = $value;
+			else if	($name == 'CertLength') 		$this->certLength = $value;
+			else if	($name == 'CertData')			$this->certData = $value;
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = pack('c1', $this->publicCertType);
+
+		if ($this->headerInfo['Action'] == ACTION_SET)
+		{
+			$this->payload .= pack('i1', $this->certLength);
+			$this->payload .= pack('A'.$this->certLength, $this->certData);
+		}
+	}
+}
+
+?>

@@ -1,0 +1,93 @@
+<?php
+require_once ('event_common.class');
+
+define('MAX_AD_DATA',			10);
+
+class ADConfiguration
+{
+	public	$schedule;
+	public	$action;
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+	public	$unpackFormat;
+	public	$payloadLength;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_AD_CONFIGURATION, 'Action'=>$_action);
+		$this->dataInfo		= array(	'Enabled'		=> array('value'=>0, 'type'=>'c1'),
+											'Sensitivity'	=> array('value'=>0, 'type'=>'c1'));
+		$this->schedule = new EventSchedule();
+		$this->action 	 = new EventAction();
+		$this->unpackFormat = 	'C1Enabled/C1Sensitivity/'.
+										'A'.$this->schedule->payloadLength.'Schedule'.'/'.
+										'A'.$this->action->payloadLength.'Action/'.
+										'A128'.'Reserved';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach($GLOBALS['XMLArray'] as $name=>$value) {
+			if 		($name == 'Schedule')	$this->schedule->ParserXML($value);
+			else if 	($name == 'Action')	$this->action->ParserXML($value);
+			else									$this->dataInfo[$name]['value'] = $value;
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		$this->schedule->UnpackData($dataArray['Schedule']);
+		$this->action->UnpackData($dataArray['Action']);
+		$this->dataInfo['Enabled']['value'] = $dataArray['Enabled'];
+		$this->dataInfo['Sensitivity']['value'] = $dataArray['Sensitivity'];
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).$this->schedule->payload.$this->action->payload.pack('a128', '');
+	}
+}
+
+class ADData
+{
+	public	$sampleData;
+	public	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array( 'Command'=>CMD_AD_DATA, 'Action'=>$_action);
+		$this->dataInfo		= array(	'SampleCount'	=> array('value'=>0, 'type'=>'i1'));
+		$this->sampleData	= array();
+		for ($index=0; $index<MAX_AD_DATA; ++$index) {
+			$this->sampleData[$index] = new ADSampleData();
+		}
+	}
+	
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat = MakeDataFormat($this->dataInfo	).MakeUnpackFormat('sampleData', GetDataInfoLength($this->sampleData[0]->dataInfo), MAX_AD_DATA);
+		$dataArray = unpack($unpackFormat, $_payload);
+		$this->dataInfo['SampleCount']['value'] = $dataArray['SampleCount'];
+		for ($index=0; $index<MAX_AD_DATA; ++$index) {
+			SetData($this->sampleData[$index]->dataInfo, $this->sampleData[$index]->payload, $dataArray['sampleData'.$index]);
+		}
+	}
+}
+
+class ADSampleData
+{	
+	public $payload;
+	public $dataInfo;
+	
+	function __construct($_action=ACTION_GET)
+	{
+		$this->dataInfo		= array(	'Sequence'	=> array('value'=>0, 'type'=>'i1'),
+											'Level'		=> array('value'=>0, 'type'=>'i1'));
+	}
+}
+?>

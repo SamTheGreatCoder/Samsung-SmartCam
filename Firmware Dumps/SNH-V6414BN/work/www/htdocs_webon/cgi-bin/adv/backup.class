@@ -1,0 +1,47 @@
+<?php
+
+class ConfigurationData
+{
+	public 	$payload;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo = array('Command'=>CMD_CONFIGURATION_BACKUP, 'Action'=>$_action);
+		set_time_limit(0);
+
+		if ($_action == ACTION_GET)
+		{
+			$this->headerInfo['Command'] = CMD_CONFIGURATION_BACKUP;
+			header("Content-Type: multipart/form-data;"); //multipart/x-mixed-replace
+		}
+		else
+		{
+			$this->headerInfo['Command'] = CMD_CONFIGURATION_RESTORE;
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $key=>$value)
+		{
+			$this->confData = $value;
+		}
+
+		$this->payload = pack('A'.strlen($this->confData), base64_decode($this->confData));
+	}
+
+	function PayloadToArray($_payload) {}
+
+	function PayloadToData($_payload, $_payloadLength)
+	{
+		$dataLength = $_payloadLength - 1;
+		$dataArray = unpack("c1continue/A".$dataLength."data", $_payload);
+		echo $dataArray['data'];
+		flush();
+		return ($dataArray['continue'] ? TRUE : FALSE);
+	}
+}
+?>

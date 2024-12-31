@@ -1,0 +1,156 @@
+<?php
+
+class TrackingPreset
+{
+
+    public $payload;
+    public $dataInfo;
+    public $headerInfo;
+
+    function __construct($_action = ACTION_GET)
+    {
+        $this->headerInfo = array('Command' => CMD_TRACKING_PRESET, 'Action' => $_action);
+        $this->dataInfo = array('AutoTrack' => array('value' => 0, 'type' => 'c1'),
+            'ObjectSize' => array('value' => 0, 'type' => 'i1'),
+            'ZoomControl' => array('value' => 0, 'type' => 'i1'),
+            'AutoReturn' => array('value' => 0, 'type' => 'i1'),
+            'Indicator' => array('value' => 0, 'type' => 'i1'),
+            'CameraHeight' => array('value' => 0, 'type' => 'i1'),
+            'Sensitivity' => array('value' => 0, 'type' => 'i1'),
+            'LostMode' => array('value' => 0, 'type' => 'i1'),
+            'AutoRelease' => array('value' => 0, 'type' => 'i1'),
+            'Record' => array('value' => 0, 'type' => 'c1'),
+            'ZoomOut' => array('value' => 0, 'type' => 'c1'),
+            'TrackTime' => array('value' => 0, 'type' => 'i1'),
+            'AutoMode' => array('value' => 0, 'type' => 'c1'),
+            'AreaActivation' => array('value' => 0, 'type' => 'c1'),
+            'Reserved' => array('value' => 0, 'type' => 'A56'));
+    }
+
+    function XMLtoArray($_menu)
+    {
+        SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+    }
+
+    function PayloadToArray($_payload)
+    {
+        SetData($this->dataInfo, $this->payload, $_payload);
+    }
+
+}
+
+class TrackingTargetlock
+{
+
+    public $payload;
+    public $dataInfo;
+    public $headerInfo;
+    public $unpackFormat;
+
+    function __construct($_action = ACTION_GET)
+    {
+        $this->headerInfo = array('Command' => CMD_TRACKING_TARGETLOCK, 'Action' => $_action);
+        $this->dataInfo = array(	'Mode' => array('value' => 0, 'type' => 'c1'),
+							            'PosX' => array('value' => 0, 'type' => 'i1'),
+							            'PosY' => array('value' => 0, 'type' => 'i1'),
+							            'AutoTrack' => array('value' => 0, 'type' => 'c1'),
+							            'NormalizePosX' => array('value' => 0, 'type' => 'i1'),
+							            'NormalizePosY' => array('value' => 0, 'type' => 'i1'),
+							            'Reserved' => array('value' => 0, 'type' => 'A47'));
+    }
+
+    function XMLtoArray($_menu)
+    {
+        SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+    }
+
+    function PayloadToArray($_payload)
+    {
+        SetData($this->dataInfo, $this->payload, $_payload);
+    }
+
+}
+
+class TrackingTracezone
+{
+
+    public $payload;
+    public $dataInfo;
+    public $headerInfo;
+    public $unpackFormat;
+
+    function __construct($_action = ACTION_GET)
+    {
+        $this->headerInfo = array('Command' => CMD_TRACKING_TRACEZONE, 'Action' => $_action);
+        $this->dataInfo = array('Zone' => array('value' => 0, 'type' => 'i1'),
+            'Mask1' => array('value' => '', 'type' => 'c1'),
+            'Mask2' => array('value' => '', 'type' => 'c1'),
+            'Mask3' => array('value' => '', 'type' => 'c1'),
+            'Mask4' => array('value' => '', 'type' => 'c1'),
+            'Mask5' => array('value' => '', 'type' => 'c1'),
+            'Mask6' => array('value' => '', 'type' => 'c1'),
+            'Mask7' => array('value' => '', 'type' => 'c1'),
+            'Mask8' => array('value' => '', 'type' => 'c1'),
+            'Status' => array('value' => 0, 'type' => 'i1'),
+            'BoxDisplay' => array('value' => '', 'type' => 'c1'),
+            'Reserved' => array('value' => 0, 'type' => 'A52'));
+        //	$this->payload 		= MakePayload($this->dataInfo);
+    }
+
+    function XMLtoArray($_menu)
+    {
+        if ($this->headerInfo['Action'] == ACTION_START)
+            return;
+        SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+    }
+
+    function PayloadToArray($_payload)
+    {
+        SetData($this->dataInfo, $this->payload, $_payload);
+    }
+
+}
+
+class TrackingStop
+{
+
+    public $payload;
+    public $headerInfo;
+
+    function __construct()
+    {
+        $this->headerInfo = array('Command' => CMD_TRACKING_STOP, 'Action' => ACTION_START);
+    }
+
+}
+
+class TrackingTracezoneProper
+{
+
+    public $payload;
+    public $dataInfo;
+    public $headerInfo;
+    public $unpackFormat;
+
+    function __construct($_action = ACTION_GET)
+    {
+        $this->headerInfo = array('Command' => CMD_TRACKING_TRACEZONE_PROPER, 'Action' => $_action);
+        $this->dataInfo = array('Enable' => array('value' => 0, 'type' => 'c1'),
+            'Reserved' => array('value' => 0, 'type' => 'A64'));
+    }
+
+    function XMLtoArray()
+    {
+        if ($this->headerInfo['Action'] == ACTION_START)
+            return;
+        SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+    }
+
+    function PayloadToArray($_payload)
+    {
+        SetData($this->dataInfo, $this->payload, $_payload);
+    }
+
+}
+
+?>

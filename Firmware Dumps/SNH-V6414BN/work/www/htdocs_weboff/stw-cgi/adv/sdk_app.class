@@ -1,0 +1,78 @@
+<?php
+
+class SDK_APP_DATA_Request
+{
+	public $payload;
+	public $dataInfo;
+	public $headerInfo;
+	public $sdk_app_data_result;
+
+	function __construct($_action=ACTION_GET, $_sendDataLength=0)
+	{
+		$this->headerInfo = 	array('Command'   =>CMD_SDK_APP_DATA, 'Action'=>$_action);
+		$this->dataInfo	  = 	array('Data'      => array('value'=>'', 'type'=>'A'.$_sendDataLength));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+	function PayloadToArray($_payload, $_payloadLength)
+	{
+		if ($this->headerInfo['Action'] == ACTION_GET)
+		{
+			$this->sdk_app_data_result = new SDK_APP_DATA_Results($_payloadLength);
+			$this->sdk_app_data_result->UnpackData($_payload);
+		}
+	}
+
+	function SendResponse()
+	{
+		switch($this->headerInfo['Action'])
+		{
+			case ACTION_GET:
+			{
+				$data_buf = $this->sdk_app_data_result->dataInfo['Data']['value'];
+
+				$msg ="";
+				$msg .= '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+				$msg .= '<Response_GetSDK_APP_DATA>'."\n";
+				$msg .= "<Data>".$data_buf."</Data>"."\n";
+				$msg .= '</Response_GetSDK_APP_DATA>'."\n";
+				header('Content-Type: text/xml; charset=utf-8');
+				header('Content-Length: '.strlen($msg));
+				echo $msg;
+				exit;
+			} break;
+
+			case ACTION_SET:
+			{
+				$msg ="";
+				$msg .= '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+				$msg .= '<Response_SetSDK_APP_DATA>'."\n";
+				$msg .= '<Data>'."Success".'</Data>'."\n";
+				$msg .= '</Response_SetSDK_APP_DATA>'."\n";
+				header('Content-Type: text/xml; charset=utf-8');
+				header('Content-Length: '.strlen($msg));
+				echo $msg;
+				exit;
+			} break;
+				 }
+	}
+}
+
+class SDK_APP_DATA_Results
+{
+	public $payload;
+	public $dataInfo;
+	function __construct($_recvDataLength=0)
+	{
+		$this->dataInfo	  = 	array('Data'	=> array('value'=>'', 'type'=>'A'.$_recvDataLength));
+	}
+	function UnpackData($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+?>

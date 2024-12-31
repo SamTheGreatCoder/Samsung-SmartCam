@@ -1,0 +1,39 @@
+<?php
+
+class SMTPSetting
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array( 'Command'		=>	CMD_SMTP_SETTING, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Sender' 	=> array('value'=>'', 'type'=>'A128'),
+											'Recipient' => array('value'=>'', 'type'=>'A128'),
+											'Server' 	=> array('value'=>'', 'type'=>'A128'),
+											'Port'		=> array('value'=>0, 'type'=>'i1'),
+											'AuthNeeded'=> array('value'=>0, 'type'=>'c1'),
+											'UserName' 	=> array('value'=>'', 'type'=>'A64'),
+											'Password' 	=> array('value'=>'', 'type'=>'A64'),
+											'Subject' 	=> array('value'=>'', 'type'=>'A256'),
+											'Body'		=>	array('value'=>'', 'type'=>'A1024'),
+											'SSLEnabled'=> array('value'=>0, 'type'=>'c1'),
+											'SSLPort' 	=> array('value'=>0, 'type'=>'i1'),
+											'TestResult'=> array('value'=>0, 'type'=>'c1'),
+											'PreAlarm' 	=> array('value'=>0, 'type'=>'c1'),
+											'PostAlarm'	=> array('value'=>0, 'type'=>'c1'),
+											'Interval' 	=> array('value'=>0, 'type'=>'c1'));
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+?>

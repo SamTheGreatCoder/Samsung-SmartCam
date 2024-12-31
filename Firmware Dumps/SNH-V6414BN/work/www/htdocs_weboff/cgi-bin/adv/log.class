@@ -1,0 +1,267 @@
+<?php
+define('MAX_LOG_RESULT',					15);
+
+class LogSearchRequest
+{
+	public $startTime;
+	public $endTime;
+	public $logSearchResults;
+	public $logSearchDetailResults;
+
+	public	$payload;
+	public 	$dataInfo;
+	public  	$headerInfo;
+	public	$unpackFormat = '';
+
+	function __construct($_action=ACTION_START)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_LOG_SEARCH, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Cat1' 		=> array('value'=>0, 'type'=>'c1'),
+											'Cat2' 		=> array('value'=>0, 'type'=>'c1'),
+											'Cat3' 		=> array('value'=>0, 'type'=>'c1'),
+											'Cat4' 		=> array('value'=>0, 'type'=>'c1'),
+											'Direction' => array('value'=>1, 'type'=>'c1'),
+											'MaxResult'	=> array('value'=>0, 'type'=>'i1'),
+											'StartKey'	=> array('value'=>0, 'type'=>'i1'));
+
+		$this->logSearchResults 			= new LogSearchResults();
+		$this->logSearchDetailResults = new LogSearchDetailResults();
+		$this->startTime					= new LogDateTimeFormat();
+		$this->endTime						= new LogDateTimeFormat();
+		$this->unpackFormat				= 	$this->dataInfo['Cat1']['type']."Cat1"."/".
+													$this->dataInfo['Cat2']['type']."Cat2"."/".
+													$this->dataInfo['Cat3']['type']."Cat3"."/".
+													$this->dataInfo['Cat4']['type']."Cat4"."/".
+													"A".GetDataInfoLength($this->startTime->dataInfo)."startTime"."/".
+													"A".GetDataInfoLength($this->endTime->dataInfo)."endTime"."/".
+													$this->dataInfo['Direction']['type']."Direction"."/".
+													$this->dataInfo['MaxResult']['type']."MaxResult"."/".
+													$this->dataInfo['StartKey']['type']."StartKey";
+	}
+
+	function XMLtoArray($_menu, $_xmlMsg)
+	{
+		$xmlArray = simplexml_load_string($_xmlMsg);
+
+		foreach ($xmlArray as $data => $value)
+		{
+			if ($data == "StartTime")
+			{
+				SetData($this->startTime->dataInfo, $this->startTime->payload, $value);
+			}
+			else if ($data == "EndTime")
+			{
+				SetData($this->endTime->dataInfo, $this->endTime->payload, $value);
+			}
+			else
+			{
+				$this->dataInfo[$data]['value'] = $value;
+			}
+		}
+
+		$this->SetMaxResult();
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		if ($this->headerInfo['Command'] == CMD_LOG_SEARCH)
+		{
+			$this->logSearchResults->UnpackData($_payload);
+		}
+		else
+		{
+			$this->logSearchDetailResults->UnpackData($_payload);
+		}
+	}
+
+	function SetMaxResult($_maxValue = MAX_LOG_RESULT)
+	{
+		if ($this->headerInfo['Command'] == CMD_LOG_SEARCH)
+		{
+			$this->dataInfo['MaxResult']['value'] = 0;
+		}
+		else
+		{
+			$this->dataInfo['MaxResult']['value'] = $_maxValue;
+		}
+	}
+
+	function SetHeaderCommand($_command)
+	{
+		$this->headerInfo['Command'] = $_command;
+	}
+
+	function SetCGIPayload($_maxValue = MAX_LOG_RESULT)
+	{
+		$this->SetMaxResult($_maxValue);
+		$this->startTime->payload 	= MakePayload($this->startTime->dataInfo);
+		$this->endTime->payload	= MakePayload($this->endTime->dataInfo);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = 	pack($this->dataInfo['Cat1']['type'], $this->dataInfo['Cat1']['value']).
+								pack($this->dataInfo['Cat2']['type'], $this->dataInfo['Cat2']['value']).
+								pack($this->dataInfo['Cat3']['type'], $this->dataInfo['Cat3']['value']).
+								pack($this->dataInfo['Cat4']['type'], $this->dataInfo['Cat4']['value']).
+								$this->startTime->payload.$this->endTime->payload.
+								pack($this->dataInfo['Direction']['type'], $this->dataInfo['Direction']['value']).
+								pack($this->dataInfo['MaxResult']['type'], $this->dataInfo['MaxResult']['value']).
+								pack($this->dataInfo['StartKey']['type'], $this->dataInfo['StartKey']['value']);
+	}
+
+	function GetXMLData()
+	{
+		$logTotalCount = $this->logSearchResults->dataInfo['ResultCount']['value'];
+		$logData = $this->logSearchDetailResults;
+		
+		$msg = '<?xml version="1.0" encoding="utf-8" ?>'."\n";
+		$msg .= '<GetLogResponse>'."\r\n";
+		$msg .= "\t".'<LogTotalCount>'.$logTotalCount.'</LogTotalCount>'."\r\n";
+		$msg .= "\t".'<LogResultCount>'.$logData->dataInfo['ResultCount']['value'].'</LogResultCount>'."\n";
+		for ($index = 0; $index<$logData->dataInfo['ResultCount']['value']; ++$index)
+		{
+			$msg .= "\t".'<Result'.$index.'>'."\r\n";
+			$msg .= "\t\t".'<Cat1>'.$logData->results[$index]['Cat1']['value'].'</Cat1>'."\r\n";
+			$msg .= "\t\t".'<Cat2>'.$logData->results[$index]['Cat2']['value'].'</Cat2>'."\r\n";
+			$msg .= "\t\t".'<Cat3>'.$logData->results[$index]['Cat3']['value'].'</Cat3>'."\r\n";
+			$msg .= "\t\t".'<Time>'."\r\n";
+			$msg .= "\t\t\t".'<Year>'.$logData->results[$index]['Year']['value'].'</Year>'."\r\n";
+			$logMon = $logData->results[$index]['Month']['value'];
+			if ($logMon<10) $logMon = '0'.$logMon;
+			$msg .= "\t\t\t".'<Month>'.$logMon.'</Month>'."\r\n";
+			$logDay = $logData->results[$index]['Day']['value'];
+			if ($logDay<10) $logDay = '0'.$logDay;
+			$msg .= "\t\t\t".'<Day>'.$logDay.'</Day>'."\r\n";
+			$logHour = $logData->results[$index]['Hour']['value'];
+			if ($logHour<10) $logHour = '0'.$logHour;
+			$msg .= "\t\t\t".'<Hour>'.$logHour.'</Hour>'."\r\n";
+			$logMin = $logData->results[$index]['Min']['value'];
+			if ($logMin<10) $logMin = '0'.$logMin;
+			$msg .= "\t\t\t".'<Min>'.$logMin.'</Min>'."\r\n";
+			$logSec = $logData->results[$index]['Sec']['value'];
+			if ($logSec<10) $logSec = '0'.$logSec;
+			$msg .= "\t\t\t".'<Sec>'.$logSec.'</Sec>'."\r\n";
+			$msg .= "\t\t".'</Time>'."\r\n";
+			$msg .= "\t\t".'<Description>'.rawUrlEncode($logData->results[$index]['Description']['value']).'</Description>'."\r\n";
+			$msg .= "\t\t".'<Key>'.$logData->results[$index]['Key']['value'].'</Key>'."\n";
+			$msg .= "\t".'</Result'.$index.'>'."\r\n";
+		}
+
+		$msg .= '</GetLogResponse>'."\r\n";
+
+		header('Content-Type: text/xml; charset=utf-8');
+		return $msg;
+	}
+}
+
+class LogSearchResults
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Cat1' 			=> array('value'=>0, 'type'=>'c1'),
+										'Cat2' 			=> array('value'=>0, 'type'=>'c1'),
+										'Cat3' 			=> array('value'=>0, 'type'=>'c1'),
+										'Cat4' 			=> array('value'=>0, 'type'=>'c1'),
+										'ResultCount' 	=> array('value'=>0, 'type'=>'i1'));								
+	}
+
+	function UnpackData($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class LogSearchDetailResults
+{
+	public 	$results;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo 			= array(	'Cat1' 			=> array('value'=>0, 'type'=>'c1'),
+													'Cat2' 			=> array('value'=>0, 'type'=>'c1'),
+													'Cat3' 			=> array('value'=>0, 'type'=>'c1'),
+													'Cat4' 			=> array('value'=>0, 'type'=>'c1'),
+													'ResultCount' 	=> array('value'=>0, 'type'=>'i1'));
+		$this->resultDataInfo 	= array(	'Cat1' 			=> array('value'=>0, 'type'=>'c1'),
+													'Cat2' 			=> array('value'=>0, 'type'=>'c1'),
+													'Cat3' 			=> array('value'=>0, 'type'=>'c1'),
+													'Cat4' 			=> array('value'=>0, 'type'=>'c1'),
+													'Year'			=> array('value'=>0,'type'=>'i1'),
+													'Month'			=> array('value'=>0,'type'=>'i1'),
+													'Day'				=> array('value'=>0,'type'=>'i1'),
+													'Hour'			=> array('value'=>0,'type'=>'i1'),
+													'Min'				=> array('value'=>0,'type'=>'i1'),
+													'Sec'				=> array('value'=>0,'type'=>'i1'),
+													'Description' 	=> array('value'=>'', 'type'=>'a128'),
+													'Key' 			=> array('value'=>0, 'type'=>'i1'));							
+	}
+
+	function UnpackData($_payload)
+	{
+		$resultLength = (strlen($_payload) - 8)/160;
+		$unpackFormat = MakeDataFormat($this->dataInfo).MakeUnpackFormat('results', 160, $resultLength);
+		$dataArray = unpack($unpackFormat, $_payload);
+
+		$this->dataInfo['Cat1']['value'] = $dataArray['Cat1'];
+		$this->dataInfo['Cat2']['value'] = $dataArray['Cat2'];
+		$this->dataInfo['Cat3']['value'] = $dataArray['Cat3'];
+		$this->dataInfo['Cat4']['value'] = $dataArray['Cat4'];
+		$this->dataInfo['ResultCount']['value'] = $dataArray['ResultCount'];
+
+		$this->results = array();
+		$resultUnpackFormat = MakeDataFormat($this->resultDataInfo);
+		
+		for ($index=0; $index<$dataArray['ResultCount']; ++$index) {
+			$this->results[$index] = $this->resultDataInfo;
+			$_dataArray = unpack($resultUnpackFormat, $dataArray['results'.$index]);
+			$this->results[$index]['Cat1']['value'] 			= $_dataArray['Cat1'];
+			$this->results[$index]['Cat2']['value'] 			= $_dataArray['Cat2'];
+			$this->results[$index]['Cat3']['value']				= $_dataArray['Cat3'];
+			$this->results[$index]['Cat4']['value'] 			= $_dataArray['Cat4'];
+			$this->results[$index]['Year']['value'] 			= $_dataArray['Year'];
+			$this->results[$index]['Month']['value']			= $_dataArray['Month'];
+			$this->results[$index]['Day']['value'] 				= $_dataArray['Day'];
+			$this->results[$index]['Hour']['value'] 			= $_dataArray['Hour'];
+			$this->results[$index]['Min']['value'] 				= $_dataArray['Min'];
+			$this->results[$index]['Sec']['value'] 				= $_dataArray['Sec'];
+			$this->results[$index]['Description']['value']	= $_dataArray['Description'];
+			$this->results[$index]['Key']['value']				= $_dataArray['Key'];
+		}		
+	}
+}
+
+class LogDateTimeFormat
+{
+	public  	$dataInfo;
+	public  	$payload;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Year'	=> array('value'=>0,'type'=>'i1'),
+										'Month'	=> array('value'=>0,'type'=>'i1'),
+										'Day'		=> array('value'=>0,'type'=>'i1'),
+										'Hour'	=> array('value'=>0,'type'=>'i1'),
+										'Min'		=> array('value'=>0,'type'=>'i1'),
+										'Sec'		=> array('value'=>0,'type'=>'i1'));
+		$this->payload = MakePayload($this->dataInfo);								
+	}
+
+	function InitData()
+	{
+		$this->dataInfo['Year']['value'] = 0;
+		$this->dataInfo['Month']['value'] = 0;
+		$this->dataInfo['Day']['value'] = 0;
+		$this->dataInfo['Hour']['value'] = 0;
+		$this->dataInfo['Min']['value'] = 0;
+		$this->dataInfo['Sec']['value'] = 0;
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+?>

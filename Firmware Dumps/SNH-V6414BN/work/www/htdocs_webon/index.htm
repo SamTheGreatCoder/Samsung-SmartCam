@@ -1,0 +1,25 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	
+	<script type="text/javascript" src="../resources/js/jquery.js" ></script>
+	<script type="text/javascript">	
+		function moveToPage(page){
+			mainFrame.location.replace("/" + page + "?login=true");
+		}
+		
+		function hidestatus(){
+			window.status="";
+			return true;
+		}
+	</script>
+</head>
+
+<frameset rows="*" frameborder="no" border="0" framespacing="0">		
+	<frame src="pages/camera_login.php?login=true" id="mainFrame" name="mainFrame" noresize="noresize"/>
+</frameset>
+
+<noframes><body>	
+</body></noframes>
+</html>

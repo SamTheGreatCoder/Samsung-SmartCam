@@ -1,0 +1,94 @@
+<?php
+
+define('MAX_DDNS',	4);	//DEV_S1DDNS add 3 --> 4
+
+
+class DDNSConfiguration
+{
+	public 	$ddns;
+
+	public 	$dataInfo;
+	public 	$payload;
+	public 	$unpackFormat;
+	public 	$payloadLength;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_DDNS_SETTING, 'Action'=>$_action);
+		for ($index=0; $index<MAX_DDNS; ++$index) {
+			$this->ddns[$index] = new DDNS();
+		}
+		$this->dataInfo = array('Type' => array('value'=>0, 'type'=>'c1'));
+	}
+
+	function PayloadToArray($payload)
+	{
+		$unpackFormat = MakeDataFormat($this->dataInfo).MakeUnpackFormat('ddns', GetDataInfoLength($this->ddns[0]->dataInfo), MAX_DDNS);
+		$_dataArray = unpack($unpackFormat, $payload);
+		for ($index=0; $index<MAX_DDNS; ++$index) {
+			SetData($this->ddns[$index]->dataInfo, $this->ddns[$index]->payload, $_dataArray['ddns'.$index]);
+		}
+		$this->dataInfo['Type']['value'] = $_dataArray['Type'];
+		$this->SetPayload();
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach ($GLOBALS['XMLArray'] as $name=>$data) {
+			if 		($name == 'Type')			$this->dataInfo['Type']['value'] = $data;
+			else if 	($name == 'SamsungDDNS')	SetData($this->ddns[0]->dataInfo, $this->ddns[0]->payload, $data);
+			else if 	($name == 'PublicDDNS')	SetData($this->ddns[1]->dataInfo, $this->ddns[1]->payload, $data);
+			else if 	($name == 'S1DDNS') SetData($this->ddns[3]->dataInfo, $this->ddns[3]->payload, $data);
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->ddns, MAX_DDNS);
+	}
+}
+
+class DDNS
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		
+		$this->dataInfo = array(	'Type'		=> array('value'=>0, 'type'=>'c1'),
+								'Name'		=> array('value'=>'', 'type'=>'A64'),
+								'TTL'			=> array('value'=>0, 'type'=>'i1'),
+								'Service'	=> array('value'=>0, 'type'=>'c1'),
+								'UserName'	=> array('value'=>'', 'type'=>'A32'),
+								'Password'	=> array('value'=>'', 'type'=>'A32'),
+								'SystemCode'=> array('value'=>'nh', 'type'=>'A12'),
+								'UseEncrypt'=> array('value'=>0, 'type'=>'c1'),
+								'Port'			=> array('value'=>0, 'type'=>'i1'));
+	}
+	
+}
+
+class QuickConnectConfiguration
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_QUICK_CONNECT_SETTING, 'Action'=>$_action);
+		$this->dataInfo 	= array('UseQuickConnect' => array('value'=>0, 'type'=>'c1'));
+	}
+
+	function PayloadToArray($payload)
+	{
+		SetData($this->dataInfo, $this->payload, $payload);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+?>

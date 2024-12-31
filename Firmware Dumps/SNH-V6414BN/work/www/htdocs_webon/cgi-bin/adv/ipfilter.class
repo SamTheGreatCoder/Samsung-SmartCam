@@ -1,0 +1,110 @@
+<?php
+define('MAX_IPFILTER', 10);
+
+class IPFilterConfiguration
+{
+	public $defaultPolicy;
+	public $ipv4IPFilter;
+	public $ipv6IPFilter;
+
+	public $payload;
+	public $dataInfo;
+	public $headerInfo;
+	public $unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_IPADDRESS_FILTER, 'Action'=>$_action);
+		for ($index=0; $index<MAX_IPFILTER; ++$index) {
+			$this->ipv4IPFilter[$index] = new IPFilterIPv4Address();
+			$this->ipv6IPFilter[$index] = new IPFilterIPv6Address();
+		}
+		$this->unpackFormat =		'c1defaultPolicy/'.
+										MakeUnpackFormat('ipv4IPFilter', GetDataInfoLength($this->ipv4IPFilter[0]->dataInfo), MAX_IPFILTER).
+										MakeUnpackFormat('ipv6IPFilter', GetDataInfoLength($this->ipv6IPFilter[0]->dataInfo), MAX_IPFILTER);
+	}
+
+	function XMLtoArray($menu)
+	{
+		$ipv4Index = $ipv6Index = 0;
+		foreach ($GLOBALS['XMLArray'] as $data) {
+			$prefix = substr($data->GetName(), 0, 4);
+			if ($prefix == 'IPv4') {
+				SetData($this->ipv4IPFilter[$ipv4Index]->dataInfo,$this->ipv4IPFilter[$ipv4Index]->payload , $data);
+				$ipv4Index++;
+			}
+			else if ($prefix == 'IPv6') {
+				SetData($this->ipv6IPFilter[$ipv6Index]->dataInfo,$this->ipv6IPFilter[$ipv6Index]->payload , $data);
+				$ipv6Index++;
+			}
+			else {
+				$this->defaultPolicy = $data;
+			}
+		}
+		for ($index=$ipv4Index; $index<MAX_IPFILTER; ++$index) $this->ipv4IPFilter[$index]->init_data();
+		for ($index=$ipv6Index; $index<MAX_IPFILTER; ++$index) $this->ipv6IPFilter[$index]->init_data();
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		$this->defaultPolicy = $dataArray['defaultPolicy'];
+		for ($index=0; $index<MAX_IPFILTER; ++$index) {
+			SetData($this->ipv4IPFilter[$index]->dataInfo, $this->ipv4IPFilter[$index]->payload, $dataArray['ipv4IPFilter'.$index]);
+			SetData($this->ipv6IPFilter[$index]->dataInfo, $this->ipv6IPFilter[$index]->payload, $dataArray['ipv6IPFilter'.$index]);
+			if (strlen($this->ipv4IPFilter[$index]->dataInfo['Address']['value']) < 3) $this->ipv4IPFilter[$index]->dataInfo['Address']['value'] = '';
+			//if (strlen($this->ipv6IPFilter[$index]->dataInfo['Address']['value']) < 3) $this->ipv6IPFilter[$index]->dataInfo['Address']['value'] = '';
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = pack('c1', $this->defaultPolicy).GetPayloads($this->ipv4IPFilter, MAX_IPFILTER).GetPayloads($this->ipv6IPFilter, MAX_IPFILTER);
+	}
+}
+
+
+class IPFilterIPv4Address
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A16'),
+										'Prefix' => array('value'=>32, 'type'=>'i1'));
+	}
+
+	function init_data()
+	{
+		$this->dataInfo = array(	'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A16'),
+										'Prefix' => array('value'=>32, 'type'=>'i1'));
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+class IPFilterIPv6Address
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array(	'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A40'),
+										'Prefix' => array('value'=>128, 'type'=>'i1'));
+	}
+
+	function init_data()
+	{
+		$this->dataInfo = array(	'Enabled'=> array('value'=>0, 'type'=>'c1'),
+										'Address'=> array('value'=>'', 'type'=>'A40'),
+										'Prefix' => array('value'=>128, 'type'=>'i1'));
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+
+?>

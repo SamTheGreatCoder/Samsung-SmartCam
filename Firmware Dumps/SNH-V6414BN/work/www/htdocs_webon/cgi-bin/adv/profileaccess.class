@@ -1,0 +1,56 @@
+<?php
+define('MAX_PROFILE_COUNT', 10);
+if($GLOBALS['M_ISP_TYPE'] == ISP_TYPE_WN3 || $GLOBALS['M_ISP_TYPE'] == ISP_TYPE_WN3_PTZ || $GLOBALS['M_ISP_TYPE'] == ISP_TYPE_WN2_PTZ ) {
+	define('MAX_STREAM_COUNT', 15);
+}
+else if($GLOBALS['M_ISP_TYPE'] == ISP_TYPE_HISILICON)
+{
+	define('MAX_STREAM_COUNT', 6);
+}
+else
+{
+	define('MAX_STREAM_COUNT', 10);
+}
+
+class ProfileAccessInformation
+{
+	public 	$profileAtcInfo;
+	public 	$userAtcInfo;
+	public	$usedProfile;
+	public	$payload;
+	
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_PROFILE_ACCESS_INFORMATION, 'Action'=>$_action);
+		$this->profileAtcInfo = array();
+		$this->userAtcInfo = array();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$this->payload = $_payload;
+		$profileDataInfo 	= array(	'UserCnt'		=> array('value'=>0, 'type'=>'i1'),
+											'ATCRate'		=> array('value'=>0, 'type'=>'i1'),
+											'SetBitrate'	=> array('value'=>0, 'type'=>'i1'),
+											'RealBitrate'	=> array('value'=>0, 'type'=>'i1'),											
+											'SetFramerate'	=> array('value'=>0, 'type'=>'i1'),
+											'RealFramerate'=> array('value'=>0, 'type'=>'i1'),
+											'ProfileName'	=> array('value'=>'', 'type'=>'A16'));
+		$userDataInfo 		= array(	'NetworkState'	=> array('value'=>0, 'type'=>'i1'),
+											'UsedProfile'	=> array('value'=>0, 'type'=>'i1'),											
+											'RealBitrate'	=> array('value'=>0, 'type'=>'i1'),
+											'IPAddress'		=> array('value'=>'', 'type'=>'A40'));								
+		$unpackFormat = MakeUnpackFormat('profileAtcInfo', GetDataInfoLength($profileDataInfo), MAX_PROFILE_COUNT);
+		$unpackFormat .= MakeUnpackFormat('userAtcInfo', GetDataInfoLength($userDataInfo), MAX_STREAM_COUNT);
+		$_dataArray = unpack($unpackFormat, $this->payload);
+		for ($index=0; $index<MAX_PROFILE_COUNT; ++$index) {
+			$this->profileAtcInfo[$index] = $profileDataInfo;
+			SetData($this->profileAtcInfo[$index], $payload, $_dataArray['profileAtcInfo'.$index]);
+		}
+		for ($index=0; $index<MAX_STREAM_COUNT; ++$index) {
+			$this->userAtcInfo[$index] = $userDataInfo;
+			SetData($this->userAtcInfo[$index], $this->payload, $_dataArray['userAtcInfo'.$index]);
+		}
+	}
+}
+?>

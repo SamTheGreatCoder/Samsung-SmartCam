@@ -1,0 +1,44 @@
+<?php
+
+class PTZLimit
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_PTZ_LIMIT, 'Action'=>$_action);
+		$this->dataInfo		= array(	'Use'					=>	array('value'=>1, 'type'=>'c1'),
+											'PanLimit'			=>	array('value'=>0, 'type'=>'c1'),
+											'TiltLimit'			=>	array('value'=>0, 'type'=>'c1'),
+											'ZoomLimit'			=>	array('value'=>0, 'type'=>'c1'),
+											'TiltLimitRange'	=> array('value'=>0, 'type'=>'c1'),
+											'PropotionalMode'	=> array('value'=>0, 'type'=>'c1'),
+											'Reserved'			=> array('value'=>'', 'type'=>'A2'),
+											'PanLeftPos'		=>	array('value'=>0, 'type'=>'i1'),
+											'PanRightPos'		=>	array('value'=>0, 'type'=>'i1'),
+											'TitleUpPos'		=>	array('value'=>0, 'type'=>'i1'),
+											'TitleDownPos'		=>	array('value'=>0, 'type'=>'i1'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		if ($this->headerInfo['Action'] == ACTION_SET)
+		{
+			SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+		}
+		else if ($this->headerInfo['Action'] == ACTION_START)
+		{
+			foreach ($GLOBALS['XMLArray'] as $name => $value) {
+				if ($name == 'Cmd')	$this->payload = pack('c1', $value);
+			}
+		}
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+?>

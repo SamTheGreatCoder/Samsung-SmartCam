@@ -1,0 +1,229 @@
+<?php
+
+class RegInfoList
+{
+	public 	$count;
+	public 	$regInfo;
+
+	public 	$headerInfo;
+	public 	$dataInfo;
+	public 	$payload;
+	public 	$unpackFormat = '';
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->headerInfo		= array( 'Command'=>CMD_SYS_REGINFO, 'Action'=>$_action);
+		$this->dataInfo		= array('Count' => array('value'=>0, 'type'=>'i1'));
+		$this->unpackFormat 	= MakeDataFormat($this->dataInfo);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat."c*", $_payload);
+
+		$this->dataInfo['Count']['value'] = $dataArray['Count'];
+
+		$regCount = $dataArray['Count'];
+
+		for ($index=0; $index<$regCount; ++$index)
+		{
+			$this->regInfo[$index] = new RegInfo();
+			$this->unpackFormat .= 'A'.GetDataInfoLength($this->regInfo[$index]->dataInfo).'regInfo'.$index.'/';
+		}
+
+		$dataArray = unpack($this->unpackFormat, $_payload);
+
+		for ($index=0; $index<$regCount; ++$index)
+		{
+			SetData($this->regInfo[$index]->dataInfo, $this->regInfo[$index]->payload, $dataArray['regInfo'.$index]);
+		}
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = '';
+		for ($index=0; $index<$this->dataInfo['Count']['value']; ++$index)
+		{
+			$msg .= "\t".'<RegisterInfo'.$index.'>'."\r\n";
+			$msg .= $this->regInfo[$index]->GetXMLData($_menu);
+			$msg .= "\t".'</RegisterInfo'.$index.'>'."\r\n";
+		}
+		return $msg;
+	}
+}
+
+class RegInfo
+{
+	public 	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo = array('Category' 	=> array('value'=>0, 'type'=>'i1'),
+										'Name' 		=> array('value'=>'', 'type'=>'A32'));
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = '';
+		foreach ($this->dataInfo as $name=>$value)
+		{
+			$msg .= "\t\t".'<'.$name.'>'.$value['value'].'</'.$name.'>'."\r\n";
+		}
+		return $msg;
+	}
+}
+
+class RegDataRequest
+{
+	public 	$regDataList;
+	public 	$regData;
+
+	public 	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_SYS_REGDATA, 'Action'=>$_action);
+		$this->dataInfo	= array( 	'Category' 	=> array('value'=>0, 'type'=>'i1'),
+											'Offset' 	=> array('value'=>0, 'type'=>'i1'));
+	}
+
+	function XMLtoArray($_action)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+
+		foreach ($xmlArray as $name=>$value)
+		{
+			$this->dataInfo[$name]['value'] = hexdec($value);
+		}
+
+		$this->headerInfo['Action'] = $_action;
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		if ($this->headerInfo['Action'] == ACTION_GET)
+		{
+			$this->regData = new RegData();
+			SetData($this->regData->dataInfo, $this->regData->payload, $_payload);
+		}
+		else if ($this->headerInfo['Action'] == ACTION_GET_ALL)
+		{
+			$this->regDataList = new RegDataList();
+			$this->regDataList->UnpackData($_payload);
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo);
+	}
+
+	function GetXMLData($_menu)
+	{
+		if ($this->headerInfo['Action'] == ACTION_GET) {
+			return $this->regData->GetXMLData($_menu);
+		}
+		else if ($this->headerInfo['Action'] == ACTION_GET_ALL) {
+			return $this->regDataList->GetXMLData($_menu);
+		}
+	}
+}
+
+class RegDataList
+{
+	public $count;
+	public $regData;
+
+	public 	$dataInfo;
+	public 	$payload;
+	public 	$unpackFormat = '';
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->dataInfo		= array('Count' => array('value'=>0, 'type'=>'i1'));
+		$this->unpackFormat 	= MakeDataFormat($this->dataInfo);
+	}
+
+	function UnpackData($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat."c*", $_payload);
+		$this->dataInfo['Count']['value'] = $dataArray['Count'];
+		$regCount = $dataArray['Count'];
+
+		for ($index=0; $index<$regCount; ++$index)
+		{
+			$this->regData[$index] = new RegData();
+			$this->unpackFormat .= 'A'.$this->regData[$index]->payloadLength.'regData'.$index.'/';
+		}
+
+		$dataArray = unpack($this->unpackFormat, $_payload);
+
+		for ($index=0; $index<$regCount; ++$index)
+		{
+			SetData($this->regData[$index]->dataInfo, $this->regData[$index]->payload, $dataArray['regData'.$index]);
+		}
+	}
+
+	function GetXMLData($_menu)
+	{
+		for ($index=0; $index<$this->dataInfo['Count']['value']; ++$index) {
+			$msg .= "\t".'<RegisterData'.$index.'>'."\r\n";
+			foreach ($this->regData[$index]->dataInfo as $name=>$value) {
+				$data = sprintf('%08x', $value['value']);
+				$msg .= "\t\t".'<'.$name.'>'.$data.'</'.$name.'>'."\r\n";
+			}
+			$msg .= "\t".'</RegisterData'.$index.'>'."\r\n";
+		}
+
+		return $msg;
+	}
+}
+
+class RegData
+{
+	public 	$category;
+	public 	$offset;
+	public 	$value;
+
+	public 	$dataInfo;
+	public 	$headerInfo;
+	public 	$payload;
+	public 	$dataFormat;
+	public 	$payloadLength;
+
+	function __construct($_action=ACTION_SET)
+	{
+		$this->headerInfo		= array( 'Command'=>CMD_SYS_REGDATA, 'Action'=>$_action);
+		$this->dataInfo		= array( 	'Category' 	=> array('value'=>0, 'type'=>'i1'),
+											'Offset' 	=> array('value'=>0, 'type'=>'i1'),
+											'Value' 		=> array('value'=>0, 'type'=>'i1'));
+		$this->dataFormat 	= MakeDataFormat($this->dataInfo);
+		$this->payloadLength	= GetDataInfoLength($this->dataInfo);
+	}
+
+	function XMLtoArray($_action)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+		foreach ($xmlArray as $name=>$value)
+		{
+			$this->dataInfo[$name]['value'] = hexdec($value);
+		}
+		$this->payload = MakePayload($this->dataInfo);
+	}
+
+	function GetXMLData($_menu)
+	{
+		$msg = '';
+		foreach ($this->dataInfo as $name=>$value)
+		{
+			$data = sprintf('%08x', $value['value']);
+			$msg .= "\t".'<'.$name.'>'.$data.'</'.$name.'>'."\r\n";
+		}
+		return $msg;
+	}
+}
+?>

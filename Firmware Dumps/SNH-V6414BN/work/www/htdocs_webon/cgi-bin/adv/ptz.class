@@ -1,0 +1,502 @@
+<?php
+require_once ('ptz_common.class');
+define('MAX_PTZ_SWING',						3);
+define('MAX_GROUP_OF_TOUR',				6);
+define('MAX_PTZ_GROUP',						6);
+define('MAX_PRESET_OF_GROUP_CNT',		256);	
+define('MAX_PRESET_OF_PRESETLIST',		128); 
+
+class PTZHomePosition
+{
+	public 	$speed;
+	public	$payload;
+	public 	$headerInfo;
+
+	function __construct($_action = ACTION_SET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_PTZ_HOMEPOSITION, 'Action'=>$_action);
+		$this->speed = new PTZSpeed();
+	}
+
+	function XMLtoArray($_action)
+	{
+		SetData($this->speed->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+
+class PTZSwing
+{
+	public 	$swing;
+	public	$payload;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_PTZ_SWING, 'Action'=>$_action);
+		$this->dataInfo	 	= array(	'Index'			=>	array('value'=>0, 'type'=>'i1'),
+											'Enabled'		=>	array('value'=>1, 'type'=>'c1'),
+											'Mode'			=>	array('value'=>0, 'type'=>'i1'),
+											'FirstPreset'	=>	array('value'=>0, 'type'=>'i1'),
+											'SecondPreset'	=>	array('value'=>0, 'type'=>'i1'),
+											'Speed'			=>	array('value'=>0, 'type'=>'i1'),
+											'DWT'				=>	array('value'=>0, 'type'=>'i1'));
+		$this->swing = array();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		if ($this->headerInfo['Action'] == ACTION_GET_ALL)
+		{
+			$unpackFormat = MakeUnpackFormat('swing', GetDataInfoLength($this->dataInfo), MAX_PTZ_SWING);
+			$dataArray = unpack($unpackFormat, $_payload);
+			$dataFormat = MakeDataFormat($this->dataInfo);
+			for ($index=0; $index<MAX_PTZ_SWING; ++$index) {
+				$_dataArray = unpack($dataFormat, $dataArray['swing'.$index]);
+				$this->swing[$index] = $this->dataInfo;
+				SetData($this->swing[$index], $temp_payload, $_dataArray);
+			}
+		}
+		else
+		{
+			SetData($this->dataInfo, $this->payload, $_payload);
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+		if ($this->headerInfo['Action'] != ACTION_SET)
+			$this->payload = pack('i1', $this->dataInfo['Index']['value']);
+	}
+}
+
+class PTZGroup
+{
+	public 	$group;
+	public	$presetList;
+
+	public	$payload;
+	public	$dataInfo;
+	public	$dataFormat;
+	public 	$headerInfo;
+	public	$unpackFormat;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_PTZ_GROUP, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Index'	=>	array('value'=>0, 'type'=>'i1'),
+											'Enabled'=>	array('value'=>1, 'type'=>'c1'));
+		$this->presetData	= array(	'Preset'	=>	array('value'=>0, 'type'=>'i1'),
+											'Speed'	=>	array('value'=>64, 'type'=>'i1'),
+											'DWT'		=>	array('value'=>3, 'type'=>'i1'));
+
+		for ($index=0; $index<MAX_PTZ_GROUP; ++$index)
+		{
+			$this->group[$index]['DataInfo'] = $this->dataInfo;
+			for ($index2=0; $index2<MAX_PRESET_OF_PRESETLIST; ++$index2)
+			{
+				$this->group[$index]['PresetList'][$index2] = $this->presetData;
+				$this->presetList[$index2] = $this->presetData;
+			}
+		}
+		$this->dataFormat 		= MakeDataFormat($this->dataInfo).MakeUnpackFormat('presetList', 12, MAX_PRESET_OF_PRESETLIST);
+		$this->unpackFormat 	= MakeUnpackFormat('group', (5+(12*MAX_PRESET_OF_GROUP_CNT)), MAX_PTZ_GROUP);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		if ($this->headerInfo['Action'] == ACTION_GET_ALL)
+		{
+			$dataArray = unpack($this->unpackFormat, $_payload);
+
+			for ($index=0; $index<MAX_PTZ_GROUP; ++$index)
+			{
+				$_dataArray = unpack($this->dataFormat, $dataArray['group'.$index]);
+				$this->group[$index]['DataInfo']['Index']['value'] 	= $_dataArray['Index'];
+				$this->group[$index]['DataInfo']['Enabled']['value']	= $_dataArray['Enabled'];
+
+				if ($_dataArray['Enabled'] != 0)
+				{
+					for ($index2=0; $index2<MAX_PRESET_OF_PRESETLIST; ++$index2)
+					{
+						$presetDataArray = unpack(MakeDataFormat($this->presetData), $_dataArray['presetList'.$index2]);
+
+						if ($presetDataArray['Preset'] == 0) continue;
+						$this->group[$index]['PresetList'][$index2]['Preset']['value'] = $presetDataArray['Preset'];
+						$this->group[$index]['PresetList'][$index2]['Speed']['value'] 	= $presetDataArray['Speed'];
+						$this->group[$index]['PresetList'][$index2]['DWT']['value'] 		= $presetDataArray['DWT'];
+					}
+				}
+			}
+		}
+		else
+		{
+			$dataArray = unpack($this->dataFormat, $_payload);
+
+			$this->dataInfo['Index']['value'] 	= $dataArray['Index'];
+			$this->dataInfo['Enabled']['value']	= $dataArray['Enabled'];
+
+			if ($dataArray['Enabled'] != 0)
+			{
+				for ($index=0; $index<MAX_PRESET_OF_PRESETLIST; ++$index)
+				{
+					$presetDataArray = unpack(MakeDataFormat($this->presetData), $dataArray['presetList'.$index]);
+					if ($presetDataArray['Preset'] == 0) continue;
+					$this->presetList[$index]['Preset']['value'] = $presetDataArray['Preset'];
+					$this->presetList[$index]['Speed']['value'] 	= $presetDataArray['Speed'];
+					$this->presetList[$index]['DWT']['value'] 	= $presetDataArray['DWT'];
+				}
+			}
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$presetIndex = 0;
+		$presetPayload = '';
+		foreach($GLOBALS['XMLArray'] as $key=>$data) {
+			if ($key == 'Index' || $key == 'Enabled') {
+				$this->dataInfo[$key]['value'] = $data;
+			}
+			else {
+				foreach($data as $name=>$value) {
+					$this->presetList[$presetIndex][$name]['value'] = $value;
+				}
+				$presetPayload .= MakePayload($this->presetList[$presetIndex]);
+				$presetIndex++;
+			}
+		}
+
+		if ($this->headerInfo['Action'] == ACTION_ADD) {
+			$tempPayload = MakePayload($this->presetData);
+			for ($index=$presetIndex; $index<MAX_PRESET_OF_GROUP_CNT; ++$index) {
+				$presetPayload .= $tempPayload;
+			}
+			$this->payload = MakePayload($this->dataInfo).$presetPayload;
+		}
+		else {
+			$this->payload = pack('i1', $this->dataInfo['Index']['value']);
+		}
+	}
+}
+
+class PTZTour
+{
+	public 	$groupList;
+
+	public	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+	public	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_PTZ_TOUR, 'Action'=>$_action);
+		$this->dataInfo		= array('Enabled'=> array('value'=>0, 'type'=>'c1'));
+		$this->groupList 	= array();
+		for ($index=0; $index<MAX_GROUP_OF_TOUR; ++$index)
+		{
+			$this->groupList[$index] = new PTZGroupNode();
+		}
+		$this->unpackFormat = MakeDataFormat($this->dataInfo).MakeUnpackFormat('groupList', GetDataInfoLength($this->groupList[0]->dataInfo), MAX_GROUP_OF_TOUR);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		if ($this->headerInfo['Action'] == ACTION_START)	return;
+
+		$xmlArray = $GLOBALS['XMLArray'];
+		$index = 0;
+		foreach($xmlArray as $key=>$data)
+		{
+			if ($key == 'Enabled')
+			{
+				$this->dataInfo['Enabled']['value'] = $data;
+			}
+			else
+			{
+				SetData($this->groupList[$index]->dataInfo, $this->groupList[$index]->payload, $data);
+				$index++;
+			}
+		}
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->groupList, MAX_GROUP_OF_TOUR);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		$this->dataInfo['Enabled']['value'] = $dataArray['Enabled'];
+		for ($index=0; $index<MAX_GROUP_OF_TOUR; ++$index)
+		{
+			SetData($this->groupList[$index]->dataInfo, $this->groupList[$index]->payload, $dataArray['groupList'.$index]);
+		}
+	}
+
+	function SetPayload()
+	{
+		for ($index=0; $index<MAX_GROUP_OF_TOUR; ++$index)
+		{
+			$this->groupList[$index]->SetPayload();
+		}
+
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->groupList, MAX_GROUP_OF_TOUR);
+	}
+}
+
+class PTZGroupNode
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo= array(	'Group'	=>	array('value'=>0, 'type'=>'i1'),
+										'DWT'		=>	array('value'=>1, 'type'=>'i1'));
+		$this->payload	= MakePayload($this->dataInfo);
+	}
+
+	function SetPayload()
+	{
+		$this->payload	= MakePayload($this->dataInfo);
+	}
+}
+
+class PTZTrace
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct($_action = ACTION_START)
+	{
+		$this->headerInfo	= array(	'Command'=>CMD_PTZ_TRACE, 'Action'=>$_action);
+		$this->dataInfo	 	= array(	'Index'	=>	array('value'=>0, 'type'=>'i1'),
+											'Mode'	=>	array('value'=>0, 'type'=>'i1'));
+	}
+
+	function XMLtoArray($_action)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+
+class PTZAutorun
+{
+	public	$payload;
+	public 	$dataInfo;
+	public	$autorunSchedule;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array(	'Command'=>CMD_PTZ_AUTORUN, 'Action'=>$_action);
+		$this->dataInfo	 	= array(	'Mode'					=>	array('value'=>0, 'type'=>'i1'),
+											'HomeTime'				=>	array('value'=>5, 'type'=>'i1'),
+											'PresetNumber'			=>	array('value'=>1, 'type'=>'i1'),
+											'PresetTime'			=>	array('value'=>5, 'type'=>'i1'),
+											'SwingMode'				=>	array('value'=>0, 'type'=>'c1'),
+											'SwingTime'				=>	array('value'=>5, 'type'=>'i1'),
+											'GroupNumber'			=>	array('value'=>1, 'type'=>'c1'),
+											'GroupTime'				=>	array('value'=>5, 'type'=>'i1'),
+											'TourTime'				=>	array('value'=>5, 'type'=>'i1'),
+											'TraceNumber'			=>	array('value'=>1, 'type'=>'c1'),
+											'TraceTime'				=>	array('value'=>5, 'type'=>'i1'),
+											'AutoPanSpeed'			=>	array('value'=>20, 'type'=>'c1'),
+											'AutoPanTiltangle'	=>	array('value'=>20, 'type'=>'c1'),
+											'AutoPanTime'			=>	array('value'=>5, 'type'=>'i1'),
+											'ScheduleTime'			=>	array('value'=>5, 'type'=>'i1'));
+		$this->autorunSchedule = array();
+		for ($index=0; $index<7; ++$index) {
+			$this->autorunSchedule[$index] = new AutorunSchedule();
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$index = 0;
+		foreach ($GLOBALS['XMLArray'] as $key=>$data) {
+			if ($key == 'AutorunSchedule') {
+				$this->autorunSchedule[$index++]->ParserXML($data);
+			}
+			else if ($key == 'Autorun') {			
+				SetData($this->dataInfo, $this->payload, $data);
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{		
+		$unpackFormat = 'A'.GetDataInfoLength($this->dataInfo).'Autorun/'.MakeUnpackFormat('AutorunSchedule', $this->autorunSchedule[0]->payloadLength, 7);
+		$dataArray = unpack($unpackFormat, $_payload);		
+		SetData($this->dataInfo, $this->payload, $dataArray['Autorun']);
+		for ($index=0; $index<7; ++$index) {
+			$this->autorunSchedule[$index]->UnpackData($dataArray['AutorunSchedule'.$index]);
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->autorunSchedule, 7);
+	}
+}
+
+class AutorunSchedule
+{
+	public	$payload;
+	public	$payloadLength;
+	public	$autorunDetailSchdule;
+
+	function __construct()
+	{
+		$this->autorunDetailSchdule = array();
+		for ($index=0; $index<24; ++$index) {
+			$this->autorunDetailSchdule[$index] = new AutorunDetailSchedule();
+		}
+		$this->payloadLength = 24*$this->autorunDetailSchdule[0]->payloadLength;
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$unpackFormat = MakeUnpackFormat('AutorunDetailSchedule', $this->autorunDetailSchdule[0]->payloadLength, 24);
+		$dataArray = unpack($unpackFormat, $_dataArray);
+		for ($index=0; $index<24; ++$index) {
+			$this->autorunDetailSchdule[$index]->UnpackData($dataArray['AutorunDetailSchedule'.$index]);
+		}
+		$this->SetPayload();
+	}
+
+	function ParserXML($_xmlArray)
+	{
+		$index = 0;
+		foreach ($_xmlArray as $key=>$data) {
+			if ($key == 'AutorunDetailSchedule') {
+				$this->autorunDetailSchdule[$index++]->ParserXML($data);
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->autorunDetailSchdule, 24);
+	}
+}
+
+class AutorunDetailSchedule
+{
+	public	$payload;
+	public	$dataInfo;
+	public	$payloadLength;
+	public	$autorunDetail;
+
+	function __construct()
+	{
+		$this->dataInfo	 	= array(	'Enable'		=>	array('value'=>0, 'type'=>'c1'),
+											'StartMin'	=>	array('value'=>0, 'type'=>'c1'),
+											'Reserved'	=>	array('value'=>0, 'type'=>'A2'));
+		$this->autorunDetail= new AutorunDetail();
+		$this->payloadLength = 4+GetDataInfoLength($this->autorunDetail->dataInfo);
+	}
+
+	function UnpackData($_dataArray)
+	{
+		$unpackFormat = 'A4ScheduleData/'.'A'.GetDataInfoLength($this->autorunDetail->dataInfo).'AutorunDetail';
+		$dataArray = unpack($unpackFormat, $_dataArray);	
+		SetData($this->dataInfo, $this->payload, $dataArray['ScheduleData']);
+		SetData($this->autorunDetail->dataInfo, $this->autorunDetail->payload, $dataArray['AutorunDetail']);
+		$this->SetPayload();
+	}
+
+	function ParserXML($_xmlArray)
+	{
+		foreach ($_xmlArray as $key=>$data) {
+			if ($key == 'AutorunDetail') {
+				SetData($this->autorunDetail->dataInfo, $this->autorunDetail->payload, $data);
+			}
+			else {
+				$this->dataInfo[$key]['value'] = $data;
+			}
+		}
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).$this->autorunDetail->payload;
+	}
+
+	function GetXMLData()
+	{
+		$msg = '';
+		$msg .= '<AutorunDetailSchedule>'."\r\n";
+		$msg .= MakeXMLData($this->dataInfo);
+		$msg .= '<AutorunDetail>'."\r\n";
+		$msg .= MakeXMLData($this->autorunDetail->dataInfo);
+		$msg .= '</AutorunDetail>'."\r\n";
+		$msg .= '</AutorunDetailSchedule>'."\r\n";
+		return $msg;
+	}
+}
+
+class AutorunDetail
+{
+	public	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo	 	= array(	'Mode'					=>	array('value'=>1, 'type'=>'i1'),
+											'PresetNumber'			=>	array('value'=>1, 'type'=>'i1'),
+											'SwingMode'				=>	array('value'=>0, 'type'=>'c1'),
+											'GroupNumber'			=>	array('value'=>1, 'type'=>'c1'),
+											'TraceNumber'			=>	array('value'=>1, 'type'=>'c1'),
+											'AutoPanSpeed'			=>	array('value'=>20, 'type'=>'c1'),
+											'AutoPanTiltangle'	=>	array('value'=>20, 'type'=>'c1'),
+											'Reserved'				=>	array('value'=>0, 'type'=>'A2'));
+	}
+}
+
+class PTZStop
+{
+	public	$payload;
+	public 	$dataInfo;
+
+	function __construct()
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_PTZ_STOP, 'Action'=>ACTION_START);
+		$this->dataInfo	 	= array(	'PanTilt'=>	array('value'=>0, 'type'=>'c1'),
+											'Zoom'	=>	array('value'=>0, 'type'=>'c1'));
+		$this->payload 		= MakePayload($this->dataInfo);
+	}
+}
+
+class PTZPreseEdit
+{
+	public	$payload;
+	public	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action = ACTION_START)
+	{
+		$this->headerInfo	= array('Command'	=>CMD_PTZ_PRESETEDIT, 'Action'=>$_action);
+		$this->dataInfo	 	= array('Index'		=>	array('value'=>0, 'type'=>'i1'));
+	}
+
+	function XMLtoArray($_action)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+
+class PTZAzimuthPosition
+{
+	public	$payload;
+	public 	$headerInfo;
+
+	function __construct($_action = ACTION_SET)
+	{
+		$this->headerInfo	= array('Command'=>CMD_PTZ_AZIMUTHPOSITION, 'Action'=>$_action);
+	}
+}
+
+
+?>

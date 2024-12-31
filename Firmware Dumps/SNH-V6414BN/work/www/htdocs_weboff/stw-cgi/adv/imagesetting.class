@@ -1,0 +1,583 @@
+<?php
+
+class ImageSetting
+{
+
+    public $imageSSDR;
+    public $imageWhiteBalance;
+    public $imageBackLight;
+    public $imageExposure;
+    public $imageSpecial;
+    public $imageFocus;
+    public $imageOSD;
+    public $imageIR;
+    public $imageDayNightSchedule;
+    public $imagePreset;
+    public $imagePTZIR;
+    public $imageTracking;
+    public $testCmd = 0;
+    public $payload = '';
+    public $dataInfo;
+    public $dataInfo2;
+    public $headerInfo;
+    public $unpackFormat;
+    public $payloadLength;
+
+    function __construct($_action = ACTION_GET)
+    {
+        $this->headerInfo = array('Command' => CMD_IMAGE_CONFIGURATION, 'Action' => $_action);
+        $this->dataInfo2 = array('VideoSourceIndex' => array('value' => 0, 'type' => 'i1'),
+            'AWC' => array('value' => 0, 'type' => 'c1'),
+            'Reserved' => array('value' => '', 'type' => 'A63'));
+        $this->dataInfo = array('Reserved' => array('value' => '', 'type' => 'A12'));
+
+        $this->imageSSDR = new ImageSSDR();
+        $this->imageWhiteBalance = new ImageWhiteBalance();
+        $this->imageBackLight = new ImageBackLight();
+        $this->imageExposure = new ImageExposure();
+        $this->imageSpecial = new ImageSpecial();
+        $this->imageFocus = new ImageFocus();
+        $this->imageOSD = new ImageOSD();
+        $this->imageIR = new ImageIR();
+        $this->imageDayNightSchedule = new ImageDayNightSchedule();
+        $this->imagePreset = new ImagePreset();
+        $this->imagePTZIR = new ImagePTZIR();
+        $this->imageTracking = new ImageTracking();
+        $this->unpackFormat = 'i1' . 'videoSourceIndex/' .
+            'A' . GetDataInfoLength($this->imageSSDR->dataInfo) . 'imageSSDR/' .
+            'A' . GetDataInfoLength($this->imageWhiteBalance->dataInfo) . 'imageWhiteBalance/' .
+            'A' . GetDataInfoLength($this->imageBackLight->dataInfo) . 'imageBackLight/' .
+            'A' . GetDataInfoLength($this->imageExposure->dataInfo) . 'imageExposure/' .
+            'A' . GetDataInfoLength($this->imageSpecial->dataInfo) . 'imageSpecial/' .
+            'A' . GetDataInfoLength($this->imageFocus->dataInfo) . 'imageFocus/' .
+            'A' . GetDataInfoLength($this->imageOSD->dataInfo) . 'imageOSD/' .
+            'A' . GetDataInfoLength($this->imageIR->dataInfo) . 'imageIR/' .
+            'A12reserved/' .
+            'A40imageDayNightSchedule/' .
+            'A27imagePreset/' .
+            'A' . GetDataInfoLength($this->imagePTZIR->dataInfo) . 'imagePTZIR/' .
+            'A' . GetDataInfoLength($this->imageTracking->dataInfo) . 'imageTracking/';
+        $this->payloadLength = 4 + GetDataInfoLength($this->imageSSDR->dataInfo) + GetDataInfoLength($this->imageWhiteBalance->dataInfo) + GetDataInfoLength($this->imageBackLight->dataInfo) +
+            GetDataInfoLength($this->imageExposure->dataInfo) + GetDataInfoLength($this->imageSpecial->dataInfo) + GetDataInfoLength($this->imageFocus->dataInfo) +
+            GetDataInfoLength($this->imageOSD->dataInfo) + GetDataInfoLength($this->imageIR->dataInfo) + (12 + 40 + 27) + GetDataInfoLength($this->imagePTZIR->dataInfo) + GetDataInfoLength($this->imageTracking->dataInfo) + 1;
+        if ($this->headerInfo['Action'] == ACTION_GET)
+        {
+            $this->payload = pack('i1', $this->dataInfo2['VideoSourceIndex']['value']);
+        }
+    }
+
+    function XMLtoArray($_menu)
+    {
+        $this->ParserXML($GLOBALS['XMLArray']);
+    }
+
+    function ParserXML($_xmlArray)
+    {
+        foreach ($_xmlArray as $name => $data)
+        {
+            if ($name == 'ImageSSDR')
+                SetData($this->imageSSDR->dataInfo, $this->imageSSDR->payload, $data);
+            else if ($name == 'ImageWhiteBalance')
+                SetData($this->imageWhiteBalance->dataInfo, $this->imageWhiteBalance->payload, $data);
+            else if ($name == 'ImageBackLight')
+                SetData($this->imageBackLight->dataInfo, $this->imageBackLight->payload, $data);
+            else if ($name == 'ImageExposure')
+                SetData($this->imageExposure->dataInfo, $this->imageExposure->payload, $data);
+            else if ($name == 'ImageSpecial')
+                SetData($this->imageSpecial->dataInfo, $this->imageSpecial->payload, $data);
+            else if ($name == 'ImageFocus')
+                SetData($this->imageFocus->dataInfo, $this->imageFocus->payload, $data);
+            else if ($name == 'ImageOSD')
+                SetData($this->imageOSD->dataInfo, $this->imageOSD->payload, $data);
+            else if ($name == 'ImageIR')
+                SetData($this->imageIR->dataInfo, $this->imageIR->payload, $data);
+            else if ($name == 'ImagePTZIR')
+                SetData($this->imagePTZIR->dataInfo, $this->imagePTZIR->payload, $data);
+            else if ($name == 'ImageTracking')
+                SetData($this->imageTracking->dataInfo, $this->imageTracking->payload, $data);
+            else if ($name == 'ImageDayNightSchedule')
+                $this->imageDayNightSchedule->ParserXML($data);
+            else if ($name == 'ImagePreset')
+                $this->imagePreset->ParserXML($data);
+            else if ($name == 'TestCmd')
+                $this->testCmd = $data;
+            else
+                $this->dataInfo2[$name]['value'] = $data;
+        }
+
+        if ($this->headerInfo['Action'] == ACTION_GET)
+        {
+            $this->payload = pack('i1', $this->dataInfo2['VideoSourceIndex']['value']);
+        }
+        else if ($this->headerInfo['Action'] == ACTION_START)
+        {
+            $this->payload = MakePayload($this->dataInfo2);
+        }
+        else
+        {
+            $this->SetPayload();
+        }
+    }
+
+    function PayloadToArray($_payload)
+    {
+        $dataArray = unpack($this->unpackFormat, $_payload);
+        $this->dataInfo2['VideoSourceIndex']['value'] = $dataArray['videoSourceIndex'];
+        SetData($this->imageSSDR->dataInfo, $this->imageSSDR->payload, $dataArray['imageSSDR']);
+        SetData($this->imageWhiteBalance->dataInfo, $this->imageWhiteBalance->payload, $dataArray['imageWhiteBalance']);
+        SetData($this->imageBackLight->dataInfo, $this->imageBackLight->payload, $dataArray['imageBackLight']);
+        SetData($this->imageExposure->dataInfo, $this->imageExposure->payload, $dataArray['imageExposure']);
+        SetData($this->imageSpecial->dataInfo, $this->imageSpecial->payload, $dataArray['imageSpecial']);
+        SetData($this->imageFocus->dataInfo, $this->imageFocus->payload, $dataArray['imageFocus']);
+        SetData($this->imageOSD->dataInfo, $this->imageOSD->payload, $dataArray['imageOSD']);
+        SetData($this->imageIR->dataInfo, $this->imageIR->payload, $dataArray['imageIR']);
+        SetData($this->imagePTZIR->dataInfo, $this->imagePTZIR->payload, $dataArray['imagePTZIR']);
+        SetData($this->imageTracking->dataInfo, $this->imageTracking->payload, $dataArray['imageTracking']);
+        $this->dataInfo['Reserved']['value'] = $dataArray['Reserved'];
+        $this->imageDayNightSchedule->UnpackData($dataArray['imageDayNightSchedule'] . ' '); //��� : array ������ ���ڰ� 32 �ϰ�� unpack ���� ����ڵ�
+        $this->imagePreset->UnpackData($dataArray['imagePreset'] . ' '); //��� : array ������ ���ڰ� 32 �ϰ�� unpack ���� ����ڵ�
+        $this->SetPayload();
+    }
+
+    function SetPayload()
+    {
+        $this->payload = pack('i1', $this->dataInfo2['VideoSourceIndex']['value']) .
+            MakePayload($this->imageSSDR->dataInfo) .
+            MakePayload($this->imageWhiteBalance->dataInfo) .
+            MakePayload($this->imageBackLight->dataInfo) .
+            MakePayload($this->imageExposure->dataInfo) .
+            MakePayload($this->imageSpecial->dataInfo) .
+            MakePayload($this->imageFocus->dataInfo) .
+            MakePayload($this->imageOSD->dataInfo) .
+            MakePayload($this->imageIR->dataInfo) .
+            MakePayload($this->dataInfo) .
+            $this->imageDayNightSchedule->payload .
+            $this->imagePreset->payload .
+            $this->imagePTZIR->payload .
+            $this->imageTracking->payload .
+            pack('c1', $this->testCmd);
+    }
+
+}
+
+class ImageSSDR
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Enabled' => array('value' => 0, 'type' => 'c1'),
+            'Level' => array('value' => 0, 'type' => 'i1'), //need to fix 1to15
+            'DynamicRange' => array('value' => 0, 'type' => 'i1'),
+            'Reserved' => array('value' => '', 'type' => 'A16'));
+    }
+
+}
+
+class ImageWhiteBalance
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Mode' => array('value' => 0, 'type' => 'i1'), //need to fix 0to4
+            'Red' => array('value' => 0, 'type' => 'i1'),
+            'Blue' => array('value' => 0, 'type' => 'i1'),
+            'Reserved' => array('value' => '', 'type' => 'A16'));
+    }
+
+}
+
+class ImageBackLight
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Mode' => array('value' => 0, 'type' => 'i1'),
+            'BLCLevel' => array('value' => 0, 'type' => 'i1'),
+            'BLCTop' => array('value' => 0, 'type' => 'i1'),
+            'BLCBottom' => array('value' => 0, 'type' => 'i1'),
+            'BLCLeft' => array('value' => 0, 'type' => 'i1'),
+            'BLCRight' => array('value' => 0, 'type' => 'i1'),
+            'HLCLevel' => array('value' => 0, 'type' => 'i1'),
+            'HLCMasktone' => array('value' => 0, 'type' => 'i1'),
+            'HLCMode' => array('value' => 0, 'type' => 'c1'),
+            'HLCMaskColor' => array('value' => 0, 'type' => 'c1'),
+            'HLCAreaFixed' => array('value' => 0, 'type' => 'c1'),
+            'HLCTop' => array('value' => 0, 'type' => 'c1'),
+            'HLCBottom' => array('value' => 0, 'type' => 'c1'),
+            'HLCLeft' => array('value' => 0, 'type' => 'c1'),
+            'HLCRight' => array('value' => 0, 'type' => 'c1'),
+            'BLCDisplay' => array('value' => 0, 'type' => 'c1'),
+            'WDRMode' => array('value' => 0, 'type' => 'c1'),
+            'WDRLimit' => array('value' => 0, 'type' => 'c1'),
+            'WDRLevel' => array('value' => 0, 'type' => 'c1'),
+            'CoordBlcTop' => array('value' => 0, 'type' => 'c1'),
+            'CoordBlcBottom' => array('value' => 0, 'type' => 'c1'),
+            'CoordBlcLeft' => array('value' => 0, 'type' => 'c1'),
+            'CoordBlcRight' => array('value' => 0, 'type' => 'c1'),
+            'Reserved' => array('value' => '', 'type' => 'A1'));
+    }
+
+}
+
+class ImageExposure
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Brightness' => array('value' => 0, 'type' => 'i1'),
+            'IrisMode' => array('value' => 0, 'type' => 'i1'),
+            'IrisLevel' => array('value' => 0, 'type' => 'i1'),
+            'ShutterMode' => array('value' => 0, 'type' => 'i1'),
+            'ShutterSpeed' => array('value' => 0, 'type' => 'i1'),
+            'AGCMode' => array('value' => 0, 'type' => 'i1'),
+            'AGCLevel' => array('value' => 0, 'type' => 'i1'),
+            'SSNRMode' => array('value' => 0, 'type' => 'i1'),
+            'SSNRLevel' => array('value' => 0, 'type' => 'i1'),
+            'SensUpMode' => array('value' => 0, 'type' => 'i1'),
+            'SensUpCondition' => array('value' => 0, 'type' => 'i1'),
+            'Mode' => array('value' => 0, 'type' => 'c1'),
+            'LongShutterSpeed' => array('value' => 0, 'type' => 'i1'),
+            'ShortShutterSpeed' => array('value' => 0, 'type' => 'i1'),
+            'UseAFLK' => array('value' => 0, 'type' => 'c1'),
+            'PIrisMode' => array('value' => 0, 'type' => 'c1'),
+            'PIrisPosition' => array('value' => 0, 'type' => 'i1'),
+            'SensorFrameMode' => array('value' => 0, 'type' => 'c1'),
+            'PIrisFno' => array('value' => 0, 'type' => 'i1'),
+            'Reserved' => array('value' => '', 'type' => 'A16'));
+    }
+
+}
+
+class ImageSpecial
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('CamTitleMode' => array('value' => 0, 'type' => 'i1'),
+            'CamTitle' => array('value' => '', 'type' => 'A64'),
+            'CamTitlePosX' => array('value' => 0, 'type' => 'i1'),
+            'CamTitlePosY' => array('value' => 0, 'type' => 'i1'),
+            'DayNightMode' => array('value' => 0, 'type' => 'i1'),
+            'DayNightDwellTime' => array('value' => 0, 'type' => 'c1'),
+            'DayNightBrightness' => array('value' => 0, 'type' => 'c1'),
+            'DayNightDwellTimeBW' => array('value' => 0, 'type' => 'c1'),
+            'DayNightBrightnessBW' => array('value' => 0, 'type' => 'c1'),
+            'DayNightDuration' => array('value' => 0, 'type' => 'i1'),
+            'SharpnessMode' => array('value' => 0, 'type' => 'i1'),
+            'SharpnessLevel' => array('value' => 0, 'type' => 'i1'),
+            'Gamma' => array('value' => 0, 'type' => 'i1'),
+            'ColorLevel' => array('value' => 0, 'type' => 'i1'),
+            'PTZPositionDisplay' => array('value' => 0, 'type' => 'c1'),
+            'DispLang' => array('value' => 0, 'type' => 'i1'),
+            'DIS' => array('value' => 0, 'type' => 'c1'),
+            'VPS' => array('value' => 0, 'type' => 'c1'),
+            'Sync' => array('value' => 0, 'type' => 'c1'),
+            'DayNightColor' => array('value' => 0, 'type' => 'c1'),
+            'H-Rev' => array('value' => 0, 'type' => 'c1'),
+            'V-Rev' => array('value' => 0, 'type' => 'c1'),
+            'AfterAction' => array('value' => 0, 'type' => 'c1'),
+            'Freeze' => array('value' => 0, 'type' => 'c1'),
+            'DayNightExtMode' => array('value' => 0, 'type' => 'c1'),
+            'NegativeMode' => array('value' => 0, 'type' => 'c1'),
+            'AutoFocusEnable' => array('value' => 0, 'type' => 'c1'),
+            'Defog' => array('value' => 0, 'type' => 'c1'),
+            'DefogLevel' => array('value' => 0, 'type' => 'i1'),
+            'LensShading' => array('value' => 0, 'type' => 'c1'),
+            'CAR' => array('value' => 0, 'type' => 'c1'),
+            'TrackingTime' => array('value' => 0, 'type' => 'i1'),
+            'LDCEnable' => array('value' => 0, 'type' => 'c1'),
+            'LDCLevel' => array('value' => 0, 'type' => 'i1'));
+    }
+
+}
+
+class ImageFocus
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Mode' => array('value' => 0, 'type' => 'i1'),
+            'ZoomTrack' => array('value' => '', 'type' => 'i1'),
+            'ZoomSpeed' => array('value' => 0, 'type' => 'i1'),
+            'DZoom' => array('value' => 0, 'type' => 'i1'),
+            'DZoomLimit' => array('value' => 0, 'type' => 'i1'),
+            'InitZoomPos' => array('value' => 0, 'type' => 'i1'),
+            'ManZoomPos' => array('value' => 0, 'type' => 'i1'),
+            'InitLens' => array('value' => 0, 'type' => 'i1'),
+            'InitLensDur' => array('value' => 0, 'type' => 'i1'),
+            'Reserved' => array('value' => '', 'type' => 'A16'));
+    }
+
+}
+
+class ImageOSD
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('DispDate' => array('value' => 0, 'type' => 'c1'),
+            'DateFormat' => array('value' => 0, 'type' => 'c1'),
+            'DatePosX' => array('value' => 0, 'type' => 'i1'),
+            'DatePosY' => array('value' => 0, 'type' => 'i1'),
+            'DispTime' => array('value' => 0, 'type' => 'c1'),
+            'TimeFormat' => array('value' => 0, 'type' => 'c1'),
+            'TimePosX' => array('value' => 0, 'type' => 'i1'),
+            'TimePosY' => array('value' => 0, 'type' => 'i1'),
+            'OSDColor' => array('value' => 0, 'type' => 'i1'),
+            'CamIDMode' => array('value' => 0, 'type' => 'c1'),
+            'CamIDValue' => array('value' => 0, 'type' => 'i1'),
+            'PTZPosX' => array('value' => 0, 'type' => 'i1'),
+            'PTZPosY' => array('value' => 0, 'type' => 'i1'),
+            'DispWeekday' => array('value' => 0, 'type' => 'c1'),
+            'PresetNameDisplay' => array('value' => 0, 'type' => 'c1'),
+            'FaceDetection' => array('value' => 0, 'type' => 'c1'),
+            'OSDSize' => array('value' => 0, 'type' => 'c1'),
+			'AzimuthEnable'		=> array('value'=>0, 'type'=>'c1'),
+            'Reserved' => array('value' => '', 'type' => 'A10'));
+    }
+
+}
+
+class ImageIR
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Mode' => array('value' => 0, 'type' => 'i1'),
+            'Level' => array('value' => 0, 'type' => 'i1'),
+            'Reserved' => array('value' => '', 'type' => 'A4'));
+    }
+
+}
+
+class DayNightSchedule
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Enable' => array('value' => 0, 'type' => 'c1'),
+            'StartHour' => array('value' => 0, 'type' => 'c1'),
+            'StartMin' => array('value' => 0, 'type' => 'c1'),
+            'EndHour' => array('value' => 0, 'type' => 'c1'),
+            'EndMin' => array('value' => 0, 'type' => 'c1'));
+    }
+
+}
+
+define('DAYNIGHT_SCHEDULE_COUNT', 8);
+
+class ImageDayNightSchedule
+{
+
+    public $schedule;
+    public $payload;
+    public $unpackFormat = '';
+
+    function __construct()
+    {
+        $this->schedule = array();
+        for ($index = 0; $index < DAYNIGHT_SCHEDULE_COUNT; ++$index)
+        {
+            $this->schedule[$index] = new DayNightSchedule();
+            $this->unpackFormat .= 'c1Enable' . $index . '/' . 'c1StartHour' . $index . '/' . 'c1StartMin' . $index . '/' . 'c1EndHour' . $index . '/' . 'c1EndMin' . $index . '/';
+        }
+    }
+
+    function UnpackData($_dataArray)
+    {
+        $dataArray = unpack($this->unpackFormat, $_dataArray);
+        for ($index = 0; $index < DAYNIGHT_SCHEDULE_COUNT; ++$index)
+        {
+            $this->schedule[$index]->dataInfo['Enable']['value'] = $dataArray['Enable' . $index];
+            $this->schedule[$index]->dataInfo['StartHour']['value'] = $dataArray['StartHour' . $index];
+            $this->schedule[$index]->dataInfo['StartMin']['value'] = $dataArray['StartMin' . $index];
+            $this->schedule[$index]->dataInfo['EndHour']['value'] = $dataArray['EndHour' . $index];
+            $this->schedule[$index]->dataInfo['EndMin']['value'] = $dataArray['EndMin' . $index];
+            $this->schedule[$index]->payload = MakePayload($this->schedule[$index]->dataInfo);
+        }
+        $this->payload = GetPayloads($this->schedule, DAYNIGHT_SCHEDULE_COUNT);
+    }
+
+    function ParserXML($_xmlData)
+    {
+        $this->schedule = array();
+        for ($index = 0; $index < DAYNIGHT_SCHEDULE_COUNT; ++$index)
+        {
+            $this->schedule[$index] = new DayNightSchedule();
+        }
+        foreach ($_xmlData as $name => $data)
+        {
+            $index = (int) substr($name, -1);
+            SetData($this->schedule[$index]->dataInfo, $this->schedule[$index]->payload, $data);
+        }
+        $this->payload = GetPayloads($this->schedule, DAYNIGHT_SCHEDULE_COUNT);
+    }
+
+    function SetPayload()
+    {
+        $this->payload = '';
+        for ($index = 0; $index < DAYNIGHT_SCHEDULE_COUNT; ++$index)
+        {
+            $this->schedule[$index]->payload = MakePayload($this->schedule[$index]->dataInfo);
+        }
+        $this->payload = GetPayloads($this->schedule, DAYNIGHT_SCHEDULE_COUNT);
+    }
+
+}
+
+class PresetSchedule
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Mode' => array('value' => 0, 'type' => 'c1'),
+            'StartHour' => array('value' => 0, 'type' => 'c1'),
+            'StartMin' => array('value' => 0, 'type' => 'c1'),
+            'EndHour' => array('value' => 23, 'type' => 'c1'),
+            'EndMin' => array('value' => 59, 'type' => 'c1'));
+        $this->payload = MakePayload($this->dataInfo);
+    }
+
+}
+
+define('IMAGE_PRSET_SCHEDULE_COUNT', 5);
+
+class ImagePreset
+{
+
+    public $schedule;
+    public $payload;
+    public $dataInfo;
+    public $unpackFormat = '';
+
+    function __construct()
+    {
+        $this->dataInfo = array('DefaultMode' => array('value' => 0, 'type' => 'c1'),
+            'ScheduleMode' => array('value' => 0, 'type' => 'c1'));
+        $this->schedule = array();
+        $this->unpackFormat = MakeDataFormat($this->dataInfo);
+        for ($index = 0; $index < IMAGE_PRSET_SCHEDULE_COUNT; ++$index)
+        {
+            $this->schedule[$index] = new PresetSchedule();
+            $this->unpackFormat .= 'c1Mode' . $index . '/' . 'c1StartHour' . $index . '/' . 'c1StartMin' . $index . '/' . 'c1EndHour' . $index . '/' . 'c1EndMin' . $index . '/';
+        }
+    }
+
+    function UnpackData($_dataArray)
+    {
+        $dataArray = unpack($this->unpackFormat, $_dataArray);
+        $this->dataInfo['DefaultMode']['value'] = $dataArray['DefaultMode'];
+        $this->dataInfo['ScheduleMode']['value'] = $dataArray['ScheduleMode'];
+        for ($index = 0; $index < IMAGE_PRSET_SCHEDULE_COUNT; ++$index)
+        {
+            $this->schedule[$index]->dataInfo['Mode']['value'] = $dataArray['Mode' . $index];
+            $this->schedule[$index]->dataInfo['StartHour']['value'] = $dataArray['StartHour' . $index];
+            $this->schedule[$index]->dataInfo['StartMin']['value'] = $dataArray['StartMin' . $index];
+            $this->schedule[$index]->dataInfo['EndHour']['value'] = $dataArray['EndHour' . $index];
+            $this->schedule[$index]->dataInfo['EndMin']['value'] = $dataArray['EndMin' . $index];
+            $this->schedule[$index]->payload = MakePayload($this->schedule[$index]->dataInfo);
+        }
+        $this->payload = MakePayload($this->dataInfo) . GetPayloads($this->schedule, IMAGE_PRSET_SCHEDULE_COUNT);
+    }
+
+    function ParserXML($_xmlData)
+    {
+        $this->schedule = array();
+        for ($index = 0; $index < IMAGE_PRSET_SCHEDULE_COUNT; ++$index)
+        {
+            $this->schedule[$index] = new PresetSchedule();
+        }
+        foreach ($_xmlData as $name => $data)
+        {
+            if ($name == 'DefaultMode' || $name == 'ScheduleMode')
+            {
+                $this->dataInfo[$name]['value'] = $data;
+            }
+            else
+            {
+                $index = (int) substr($name, -1);
+                SetData($this->schedule[$index]->dataInfo, $this->schedule[$index]->payload, $data);
+            }
+        }
+        $this->payload = MakePayload($this->dataInfo) . GetPayloads($this->schedule, IMAGE_PRSET_SCHEDULE_COUNT);
+    }
+
+    function SetPayload()
+    {
+        $this->payload = '';
+        for ($index = 0; $index < IMAGE_PRSET_SCHEDULE_COUNT; ++$index)
+        {
+            $this->schedule[$index]->payload = MakePayload($this->schedule[$index]->dataInfo);
+        }
+        $this->payload = MakePayload($this->dataInfo) . GetPayloads($this->schedule, IMAGE_PRSET_SCHEDULE_COUNT);
+    }
+
+}
+
+class ImagePTZIR
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Mode' => array('value' => 0, 'type' => 'i1'),
+            'LedOnLevel' => array('value' => 0, 'type' => 'i1'),
+            'LedOffLevel' => array('value' => 0, 'type' => 'i1'),
+            'LedOnTimeHour' => array('value' => 0, 'type' => 'i1'),
+            'LedOnTimeMin' => array('value' => 0, 'type' => 'i1'),
+            'LedOffTimeHour' => array('value' => 0, 'type' => 'i1'),
+            'LedOffTimeMin' => array('value' => 0, 'type' => 'i1'),
+            'LedMaxPower' => array('value' => 0, 'type' => 'i1'),
+            'LedPowerControl' => array('value' => 0, 'type' => 'i1'),
+            'Reserved' => array('value' => '', 'type' => 'A128'));
+    }
+
+}
+
+class ImageTracking
+{
+
+    public $payload;
+    public $dataInfo;
+
+    function __construct()
+    {
+        $this->dataInfo = array('Mode' => array('value' => 0, 'type' => 'c1'),
+            'Reserved' => array('value' => '', 'type' => 'A3'));
+    }
+
+}
+
+?>

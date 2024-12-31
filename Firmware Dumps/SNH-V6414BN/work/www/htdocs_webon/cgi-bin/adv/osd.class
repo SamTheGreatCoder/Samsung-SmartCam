@@ -1,0 +1,90 @@
+<?php
+class OSDOperation
+{
+	public 	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action)
+	{
+		$this->headerInfo	= array('Command'=>CMD_OSD_CONTROL, 'Action'=>$_action);
+		$this->dataInfo 	= array('Command'=> array('value'=>0, 'type'=>'c1'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+		$this->headerInfo['Action'] = ACTION_SET;
+	}
+}
+
+class OSDTime
+{
+	public 	$payload;
+	public	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array(	'Command'=>CMD_OSD_TIME, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Enabled'=> array('value'=>0, 'type'=>'c1'),
+											'PosX'	=> array('value'=>0, 'type'=>'i1'),
+											'PosY'	=> array('value'=>0, 'type'=>'i1'));
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+}
+
+class ChineseOSDConfiguration
+{
+	public 	$payload;
+	public	$osdMsg;
+	public	$headerInfo;
+	public	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array(	'Command'=>CMD_CHINESE_OSD, 'Action'=>$_action);
+		$this->osdMsg = array();
+		for ($index=0; $index<4; ++$index) {
+			$this->osdMsg[$index] = new ChineseOsdMsg();
+		}
+		$this->unpackFormat = MakeUnpackFormat('OsdMsg', 136, 4);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		for ($index=0; $index<4; ++$index) {
+			SetData($this->osdMsg[$index]->dataInfo, $this->osdMsg[$index]->payload, $dataArray['OsdMsg'.$index]);
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->osdMsg, 4);
+	}
+}
+
+class ChineseOsdMsg
+{
+	public 	$payload;
+	public	$dataInfo;
+
+	function __construct()
+	{
+		$this->dataInfo	= array(	'PosX'		=> array('value'=>0, 'type'=>'i1'),
+										'PosY'		=> array('value'=>0, 'type'=>'i1'),
+										'Message'	=> array('value'=>0, 'type'=>'A128'));
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+?>

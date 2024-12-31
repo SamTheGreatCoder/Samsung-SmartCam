@@ -1,0 +1,34 @@
+<?php
+
+class FTPSetting
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array( 'Command'			=>CMD_FTP_SETTING, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Server' 		=> array('value'=>'', 'type'=>'A128'),
+											'Directory' 	=> array('value'=>'', 'type'=>'A256'),
+											'Port'			=>	array('value'=>0, 'type'=>'i1'),
+											'UserName' 		=> array('value'=>'', 'type'=>'A64'),
+											'Password' 		=> array('value'=>'', 'type'=>'A64'),
+											'PassiveMode' 	=> array('value'=>0, 'type'=>'c1'),
+											'TestResult' 	=> array('value'=>0, 'type'=>'c1'),
+											'PreAlarm' 		=> array('value'=>0, 'type'=>'c1'),
+											'PostAlarm'		=> array('value'=>0, 'type'=>'c1'),
+											'Interval' 		=> array('value'=>0, 'type'=>'c1'));
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+?>

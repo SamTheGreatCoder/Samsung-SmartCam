@@ -1,0 +1,201 @@
+<?xml version="1.0"?>
+
+
+<xs:schema version="1.0"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           elementFormDefault="qualified"
+           targetNamespace="http://www.samsungtechwin.com/AttributesSchema"
+           xmlns="http://www.samsungtechwin.com/AttributesSchema">
+
+  <!-- Config Schema version -->
+  <xs:simpleType name="AttributesSchemaVersion">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="0.1"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+
+  <xs:element name="dataType">
+    <xs:complexType>
+      <xs:choice>
+        <xs:element name="string" minOccurs="0">
+          <xs:complexType>
+            <xs:attribute name="minlen" type="xs:integer"/>
+            <xs:attribute name="maxlen" type="xs:integer"/>
+            <xs:attribute name="format" type="xs:string"/>
+            <xs:attribute name="formatInfo" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="int" minOccurs="0">
+          <xs:complexType>
+            <xs:attribute name="min" type="xs:integer"/>
+            <xs:attribute name="max" type="xs:integer"/>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="float" minOccurs="0">
+          <xs:complexType>
+            <xs:attribute name="min" type="xs:float"/>
+            <xs:attribute name="max" type="xs:float"/>
+          </xs:complexType>
+        </xs:element>
+
+
+        <xs:element name="enum" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="entry" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:attribute name="value" type="xs:string" use="required"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="csv" minOccurs="0">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="entry" minOccurs="0" maxOccurs="unbounded" >
+                <xs:complexType>
+                  <xs:attribute name="value" type="xs:string"/>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+
+        <xs:element name="bool" minOccurs="0">
+          <xs:complexType>
+            <xs:attribute name="true" type="xs:string" use="optional"/>
+            <xs:attribute name="false" type="xs:string" use="optional"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:choice>
+
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="parameter">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="dataType" minOccurs="0"/>
+      </xs:sequence>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:attribute name="request" type="xs:boolean" use="required" />
+      <xs:attribute name="response" type="xs:boolean" use="required" />
+
+
+    </xs:complexType>
+  </xs:element>
+  <xs:element name="action">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="parameter" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:attribute name="accesslevel" type="accesslevelTypes" use="required" />
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="submenu">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="action" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+
+
+  <xs:element name="cgi">
+    <xs:complexType>
+      <xs:choice>
+        <xs:element ref="submenu" minOccurs="0" maxOccurs="unbounded"/>
+
+      </xs:choice>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+
+    </xs:complexType>
+  </xs:element>
+
+  <xs:simpleType name="accesslevelTypes">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="admin"/>
+      <xs:enumeration value="suser"/>
+      <xs:enumeration value="user"/>
+      <xs:enumeration value="guest"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:element name="attribute">
+    <xs:complexType>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+      <xs:attribute name="type" type="xs:string" use="required"/>
+      <xs:attribute name="value" type="xs:string" use="required"/>
+      <xs:attribute name="accesslevel" type="accesslevelTypes" use="required" />
+
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="channel">
+    <xs:complexType>
+
+      <xs:sequence>
+        <xs:element ref="attribute" minOccurs="1" maxOccurs="unbounded"/>
+      </xs:sequence>
+
+      <xs:attribute name="number" type="xs:integer" use="required"/>
+
+    </xs:complexType>
+  </xs:element>
+
+
+  <xs:element name="category">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="channel" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element ref="attribute" minOccurs="0" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="group">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="category" minOccurs="1" maxOccurs="unbounded"/>
+      </xs:sequence>
+      <xs:attribute name="name" type="xs:string" use="required"/>
+
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="attributes">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="group" minOccurs="1" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="cgis">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="cgi" minOccurs="1" maxOccurs="unbounded"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:element name="capabilities">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element ref="attributes" minOccurs="1" maxOccurs="1" />
+        <xs:element ref="cgis" minOccurs="1" maxOccurs="1"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

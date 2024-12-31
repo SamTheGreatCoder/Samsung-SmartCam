@@ -1,0 +1,42 @@
+<?php
+
+/*
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
+ */
+
+/**
+ * Description of HTTPSetting
+ *
+ * @author a120520
+ */
+class HTTPSetting
+{
+    public 	$payload;
+	public 	$dataInfo;
+	public	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array( 'Command'			=>CMD_HTTP_SETTING, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'URL' 		=> array('value'=>'', 'type'=>'A256'),
+											'Username' 	=> array('value'=>'', 'type'=>'A64'),
+											'Password'			=>	array('value'=>'', 'type'=>'A64'),
+											'ProxyHost' 		=> array('value'=>'', 'type'=>'A64'),
+											'ProxyUsername' 		=> array('value'=>'', 'type'=>'A64'),
+											'ProxyPassword' 	=> array('value'=>'', 'type'=>'A64'),
+											'ProxyPort' 	=> array('value'=>0, 'type'=>'i1'));											
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		SetData($this->dataInfo, $this->payload, $GLOBALS['XMLArray']);
+	}
+}
+
+?>

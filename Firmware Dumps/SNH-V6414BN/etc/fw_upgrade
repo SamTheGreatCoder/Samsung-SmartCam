@@ -1,0 +1,14 @@
+#!/bin/sh
+
+#echo "flash_eraseall /dev/mtd2"
+#flash_eraseall /dev/mtd2
+#sync
+#echo "nandwrite /dev/mtd2 /work/app/ptb_dump.bin"
+#nandwrite /dev/mtd2 /work/app/ptb_dump.bin
+#sync
+#rm -rf /work/app/ptb_dump.bin
+#sync
+
+echo "ptb upgrade "
+upgrade_partition -S 2 -C "console=ttyS0 rootfs=ramfs root=/dev/ram rw rdinit=/linuxrc mem=220M dsp=0xC0000000,0x00000000 bsb=0xC0000000,0x00000000"
+sync

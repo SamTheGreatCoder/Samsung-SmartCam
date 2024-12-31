@@ -1,0 +1,65 @@
+#! /bin/sh
+#description: startup script for zero configuration daemon
+#processname: zeroconf-ip
+
+. /etc/zeroconf/zerocfg
+
+set -e
+NAME=zeroconf-ip
+ZEROCFGD=/usr/sbin/avahi-autoipd
+#ARGS='--debug -D -w --force-bind' #for Debugging
+ARGS='-D -w --force-bind'
+PID_FILE=/var/run/avahi-autoipd.$EXT_IFNAME.pid
+EXE_NAME=zeroconf-ipd
+
+test -f $ZEROCFGD || exit 0
+
+
+case "$1" in
+  start)
+        if [ "$ENABLE_ZEROCFG" = yes ]; then
+		echo -e "Starting $NAME"
+       	 	start-stop-daemon -b -q -S --pidfile $PID_FILE -x $ZEROCFGD -- $ARGS $EXT_IFNAME
+        	echo -e "$NAME is now running"
+	else
+		echo -e "$NAME is Disabled"
+	fi
+        ;;
+  stop)
+        echo -e "Stopping $NAME"
+	if [ -f "$PID_FILE" ]; then
+		_pid=$(cat $PID_FILE 2>/dev/null)
+        	if [ "$_pid" ]; then
+			kill -INT $_pid
+        	else
+                	echo -e "$NAME is not running. Stop failed"
+        	fi
+		rm -f $PID_FILE
+	else
+		echo -e "$NAME is not running. Stop failed"
+	fi
+        ;;
+  restart|reload|force-reload)
+        echo -e "Reloading $NAME"
+	if [ -f "$PID_FILE" ]; then
+		_pid=$(cat $PID_FILE 2>/dev/null)
+        	if [ "$_pid" ]; then
+			kill -HUP $_pid
+			echo -e "$NAME is now restarted"
+        	else
+                	echo -e "$NAME is not running. Reloading failed"
+        	fi
+	else
+		echo -e "$NAME is not running. Stopping is not required"
+        	echo -e "Starting $NAME"
+        	start-stop-daemon -b -q -S --pidfile $PID_FILE -x $ZEROCFGD -- $ARGS $EXT_IFNAME
+        	echo -e "$NAME is now running"
+	fi
+        ;;
+  *)
+        echo -e "Usage: /etc/init.d/$EXE_NAME {start|stop|restart|reload|force-reload}"
+        exit 1
+        ;;
+esac
+exit 0
+

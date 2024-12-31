@@ -1,0 +1,48 @@
+<?php
+
+class UserLogin
+{
+	public $payload;
+	public $dataInfo;
+	public $headerInfo;
+	public $unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+
+		$this->headerInfo = array('Command'=>CMD_USER_LOGIN, 'Action'=>$_action);
+		$this->dataInfo = array(	
+				'ID' 			=> array('value'=>'', 'type'=>'a16', 'visible'=>TRUE),
+				'IP' 			=> array('value'=>'', 'type'=>'a40', 'visible'=>TRUE),
+				'SystemClockTime'	=> array('value'=>0, 'type'=>'i1', 'visible'=>TRUE),
+				'LastAuthTime'	=> array('value'=>0, 'type'=>'i1', 'visible'=>TRUE),
+				'AuthKey' 		=> array('value'=>'', 'type'=>'a64', 'visible'=>TRUE),
+				'IsLoginCmd' 	=> array('value'=>0, 'type'=>'i1', 'visible'=>TRUE),
+		);
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->dataInfo).'userlogin';
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$xmlArray = $GLOBALS['XMLArray'];
+		foreach ($xmlArray as $key=>$data)
+		{
+			SetData($this->dataInfo, $this->payload, $data);
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		SetData($this->dataInfo, $this->payload, $dataArray['userlogin']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		//$this->payload = MakePayload($this->dataInfo);
+		$this->payload = MakePayloadNoTrim($this->dataInfo);
+	}
+}
+?>

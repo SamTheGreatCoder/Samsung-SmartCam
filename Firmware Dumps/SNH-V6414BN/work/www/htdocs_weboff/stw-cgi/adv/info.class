@@ -1,0 +1,192 @@
+<?php
+class Information
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct()
+	{
+		$this->headerInfo = array( 'Command'					=>	CMD_INFORMATION, 'Action'=>ACTION_GET);
+		$this->dataInfo 	= array(	'PreviewProfileNo'	=> array('value'=>0, 'type'=>'i1'),
+											'IsWide'					=> array('value'=>0, 'type'=>'i1'),
+											'MegaMode'				=> array('value'=>0, 'type'=>'i1'),
+											'DevicePort'			=>	array('value'=>0, 'type'=>'i1'),
+											'DDNSType'				=>	array('value'=>0, 'type'=>'i1'),
+											'IPv4Addr'				=> array('value'=>0, 'type'=>'A16'),
+											'Name'					=> array('value'=>0, 'type'=>'A16'),
+											'Password'				=> array('value'=>0, 'type'=>'A17'),
+											'Level'					=>	array('value'=>0, 'type'=>'i1'),
+											'UserRightAudioIn' 	=> array('value'=>0, 'type'=>'c1'),
+											'UserRightAudioOut' 	=> array('value'=>0, 'type'=>'c1'),
+											'UserRightRelay' 		=> array('value'=>0, 'type'=>'c1'),
+											'UserRightPTZ' 		=> array('value'=>0, 'type'=>'c1'),
+											'UserRightProfile' 	=> array('value'=>0, 'type'=>'c1'),
+											'IsHTTPS'				=> array('value'=>0, 'type'=>'c1'),
+											'VideoType'				=>	array('value'=>0, 'type'=>'i1'),
+											'Flip'					=>	array('value'=>0, 'type'=>'c1'),
+											'Mirror'					=>	array('value'=>0, 'type'=>'c1'),
+											'DayNightMode'			=>	array('value'=>0, 'type'=>'c1'),
+											'Language'				=>	array('value'=>0, 'type'=>'c1'),
+											'IPv6Enable'			=>	array('value'=>0, 'type'=>'c1'),
+											'HttpPort'				=>	array('value'=>0, 'type'=>'i1'),
+											'SensorFrameMode'		=> array('value'=>0, 'type'=>'c1'),
+											'DIS'						=> array('value'=>0, 'type'=>'c1'),
+											'LongShutterSpeed'	=> array('value'=>0, 'type'=>'i1'),
+											'BlcMode'				=> array('value'=>0, 'type'=>'i1'),
+											'TamperingEnable'		=> array('value'=>0, 'type'=>'c1'),
+											'AudioOutputEnable'	=> array('value'=>0, 'type'=>'c1'),
+											'ManualRecordingStatus' => array('value'=>0, 'type'=>'c1'),
+											'RecordingEnable' 	=> array('value'=>0, 'type'=>'c1'),
+											'Reserved'				=> array('value'=>0, 'type'=>'A7'),
+											'EncName'					=> array('value'=>0, 'type'=>'A100'),
+											'EncPassword'			=> array('value'=>0, 'type'=>'A100'),
+											'PasswordCheck'		=> array('value'=>0, 'type'=>'c1'),
+											'MDEnable'		=> array('value'=>0, 'type'=>'c1'),
+											'IVEnable'		=> array('value'=>0, 'type'=>'c1'));
+		$digest = '';
+		$currentUserName = '';
+		preg_match_all('/(\w+)="([\w\s\~\`\!\@\$\^\*\(\)\_\-\|\{\}\[\]\;\,\.\?\/]+)"/', $_SERVER['PHP_AUTH_DIGEST'], $digest);
+		for ($index=0; $index<count($digest[1]); ++$index) {
+			if ($digest[1][$index] == 'username') {
+				$currentUserName = trim($digest[2][$index]);
+				break;
+			}
+		}
+
+		if ($currentUserName == '') {
+			if (isset($_SERVER['AUTH_TYPE']))
+				$currentUserName = 'guest';	
+			else 
+				$currentUserName = 'admin';
+		}
+		$this->payload = pack('a16', $currentUserName);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		SetData($this->dataInfo, $this->payload, $_payload);
+		$GLOBALS['MEGAMODE'] = $this->dataInfo['MegaMode']['value'];
+		if($GLOBALS['M_MAX_RESOLUTION'] == MAX_2_MEGA || ($GLOBALS['M_MAX_RESOLUTION'] == MAX_3_MEGA && $GLOBALS['MEGAMODE'] == 2)){
+			$GLOBALS['VIEWER_WIDTH'] = 640;
+			$GLOBALS['VIEWER_HEIGHT'] = 360;
+		}
+		else{
+			$GLOBALS['VIEWER_WIDTH'] = 640;
+			$GLOBALS['VIEWER_HEIGHT'] = 480;
+		}
+		$GLOBALS['FLIP'] = $this->dataInfo['Flip']['value'];
+		$GLOBALS['MIRROR'] = $this->dataInfo['Mirror']['value'];
+		$GLOBALS['VIDEOTYPE'] = ($this->dataInfo['VideoType']['value']==0 ? 'NTSC' : 'PAL');
+		$GLOBALS['USERINFO']['name'] 		= $this->dataInfo['Name']['value'];
+    	$GLOBALS['USERINFO']['pw']  		= $this->dataInfo['Password']['value'];
+		$GLOBALS['USERINFO']['encname'] 		= $this->dataInfo['EncName']['value'];
+    	$GLOBALS['USERINFO']['encpw']  		= $this->dataInfo['EncPassword']['value'];
+		$GLOBALS['USERINFO']['level'] 	= $this->dataInfo['Level']['value'];
+		$GLOBALS['USERINFO']['profile'] 	= $this->dataInfo['UserRightProfile']['value'];
+		$GLOBALS['USERINFO']['audioin'] 	= $this->dataInfo['UserRightAudioIn']['value'];
+		$GLOBALS['USERINFO']['relay'] 	= $this->dataInfo['UserRightRelay']['value'];
+		$GLOBALS['USERINFO']['audioout'] = $this->dataInfo['UserRightAudioOut']['value'];
+		$GLOBALS['USERINFO']['ptz'] 		= $this->dataInfo['UserRightPTZ']['value'];
+		$GLOBALS['LANGINDEX'] 				= $this->dataInfo['Language']['value'];
+		$langArr = array('en-US', 'ko-KR', 'zh-CN', 'fr-FR', 'it-IT', 'es-ES', 'de-DE', 'ja-JP', 'ru-RU', 'sv-SE', 'da-DK', 'pt-PT', 'cs-CZ', 'pl-PL', 'tr-TR', 'ro-RO', 'sr-Cyrl-CS', 'nl-NL', 'hr-HR', 'hu-HU', 'el-GR', 'nn-NO', 'fi-FI');
+		$GLOBALS['LANGSTRING'] 			= $langArr[$GLOBALS['LANGINDEX']];
+		$GLOBALS['JPEGUUID']				= $this->GetUniqueID();
+		$GLOBALS['SNAPUUID'] 			= $this->GetUniqueID();
+		$this->SetRequestURL($this->dataInfo['IsHTTPS']['value']);
+	}
+
+	function GetUniqueID()
+	{
+	    $uid = uniqid(NULL, TRUE);	 // Time based PHP Unique ID
+	    $rawid = strtoupper(sha1(uniqid(rand(), true)));
+	    $result = substr($uid, 6, 8);
+	    $result .= substr($uid, 0, 4);
+	    $result .= substr(sha1(substr($uid, 3, 3)), 0, 4);
+	    $result .= substr(sha1(substr(time(), 3, 4)), 0, 4);
+	    $result .= strtolower(substr($rawid, 10, 12));
+	    return $result;
+	}
+
+	function SetRequestURL($_httpsMode)
+	{
+		$httpsString 	= 'http://';
+		if($_httpsMode != 0) $httpsString = 'https://';
+		$the_hostname	= $_SERVER['HTTP_HOST'];
+		$ipaddr			= split(':', $the_hostname);
+		$isipv6			= 0;
+		$hostname 		= $the_hostname;
+		if (sizeof($ipaddr) > 2) {
+			$isipv6 = 1;
+			$hostname = '';
+			for($i=0;$i<6;$i++) {
+				$hostname .= $ipaddr[$i];
+				if($i != 5) $hostname .= ':';
+			}
+			$replace_array = array('[' => '', ']' => '');
+			$hostname = strtr($hostname, $replace_array);
+		}
+		$relocate_page = '';
+		if ($isipv6 == 1) $relocate_page .= '[';
+		$relocate_page .= $hostname;
+		if ($isipv6 == 1) $relocate_page .= ']';
+		if ($_SERVER['SERVER_PORT'] != 80 && $isipv6 == 1 && $httpsString == 'http://') {
+			$relocate_page .= ':';
+			$relocate_page .= $_SERVER['SERVER_PORT'];
+		}
+		$GLOBALS['REQUEST_URI'] = $httpsString.$relocate_page.'/cgi-bin/stw.cgi';
+
+	}
+}
+
+class ResolutionInfo
+{
+	public 	$payload;
+	public 	$dataInfo;
+	public 	$headerInfo;
+	public   $resolution;
+	public 	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_RESOLUTION_INFO, 'Action'=>$_action);
+		
+		for ($index=0; $index<MAX_RESOLUTION; ++$index)
+		{
+			$this->resolution[$index] = new Resolution();
+		}
+		$this->unpackFormat = MakeUnpackFormat('resolution', GetDataInfoLength($this->resolution[0]->dataInfo), MAX_RESOLUTION);
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		for ($index=0; $index<MAX_RESOLUTION; ++$index)
+		{
+			SetData($this->resolution[$index]->dataInfo, $this->resolution[$index]->payload, $dataArray['resolution'.$index]);
+		}
+	}
+
+}
+
+class Resolution 
+{
+	function __construct()
+	{
+		$this->dataInfo 	= array(	'Width'							 	 => array('value'=>0, 'type'=>'i1'),
+											'Height'								 => array('value'=>0, 'type'=>'i1'),
+											'MJPEGCBRMinBitrate'				 => array('value'=>0, 'type'=>'i1'),
+											'MJPEGCBRMaxBitrate'				 => array('value'=>0, 'type'=>'i1'),
+											'MJPEGCBRDefaultBitrate'		 => array('value'=>0, 'type'=>'i1'),
+											'MJPEGVBRMinBitrate'				 => array('value'=>0, 'type'=>'i1'),
+											'MJPEGVBRMaxBitrate'				 => array('value'=>0, 'type'=>'i1'),
+											'MJPEGVBRDefaultBitrate'		 => array('value'=>0, 'type'=>'i1'),
+											'H264CBRMinBitrate'		 		 => array('value'=>0, 'type'=>'i1'),
+											'H264CBRMaxBitrate'				 => array('value'=>0, 'type'=>'i1'),
+											'H264CBRDefaultBitrate'			 => array('value'=>0, 'type'=>'i1'),
+											'H264VBRMinBitrate'		 		 => array('value'=>0, 'type'=>'i1'),
+											'H264VBRMaxBitrate'			 	 => array('value'=>0, 'type'=>'i1'),
+											'H264VBRDefaultBitrate' 		 => array('value'=>0, 'type'=>'i1'));
+	}
+}
+?>

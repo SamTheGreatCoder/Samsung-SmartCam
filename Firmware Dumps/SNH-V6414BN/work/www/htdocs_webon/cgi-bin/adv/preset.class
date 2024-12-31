@@ -1,0 +1,73 @@
+<?php
+require_once ('ptz_common.class');
+
+class PTZPreset
+{
+	public	$preset;
+	public	$ptzPosition;
+	public	$ptzSpeed;
+ 
+	public	$payload;
+	public	$dataInfo;
+	public 	$headerInfo;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_PTZ_PRESET, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Index'		=>	array('value'=>0, 'type'=>'i1'),
+											'Enabled'	=>	array('value'=>0, 'type'=>'c1'),
+											'Token'		=>	array('value'=>'', 'type'=>'A16'),
+											'Name'		=>	array('value'=>'', 'type'=>'A16'));
+		$this->ptzPosition = new PTZPosition();	
+		$this->ptzSpeed 	= new PTZSpeed();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$presetUnpackFormat = 'A'.GetDataInfoLength($this->dataInfo).'presetData/'.'A'.GetDataInfoLength($this->ptzPosition->dataInfo).'ptzPosition';
+		if ($this->headerInfo['Action'] == ACTION_GET_ALL) {			
+			$dataInfoLength = GetDataInfoLength($this->dataInfo)+GetDataInfoLength($this->ptzPosition->dataInfo);
+			$unpackFormat = MakeUnpackFormat('presetList', $dataInfoLength, $GLOBALS['M_PRESET_COUNT']);
+			$dataArray = unpack($unpackFormat, $_payload);
+
+			$this->preset = array();
+			$this->ptzPosition = array();
+			for ($index=0; $index<$GLOBALS['M_PRESET_COUNT']; ++$index) {
+				$this->preset[$index] = $this->dataInfo;
+				$this->ptzPosition[$index] = new PTZPosition();
+				$_dataArray = unpack($presetUnpackFormat, $dataArray['presetList'.$index]);
+				SetData($this->preset[$index], $presetPayload, $_dataArray['presetData']);
+				SetData($this->ptzPosition[$index]->dataInfo, $this->ptzPosition[$index]->payload, $_dataArray['ptzPosition']);
+			}
+		}
+		else {
+			$_dataArray = unpack($presetUnpackFormat, $_payload);
+			SetData($this->dataInfo, $this->payload, $_dataArray['presetData']);
+			SetData($this->ptzPosition->dataInfo, $this->ptzPosition->payload, $_dataArray['ptzPosition']);
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach($GLOBALS['XMLArray'] as $name=>$value) {
+			if 		($name == 'PTZPosition')	SetData($this->ptzPosition->dataInfo, $this->ptzPosition->payload, $value);
+			else if 	($name == 'PTZSpeed')		SetData($this->ptzSpeed->dataInfo, $this->ptzSpeed->payload, $value);
+			else if 	($name == 'Name')			$this->dataInfo[$name]['value'] = stripslashes(trim($value));
+			else if	($name == 'Index')			$this->dataInfo[$name]['value'] = $value;
+		}
+
+		if ($this->headerInfo['Action'] == ACTION_GET || $this->headerInfo['Action'] == ACTION_REMOVE)
+		{
+			$this->payload = pack('i1', $this->dataInfo['Index']['value']);
+		}
+		else if ($this->headerInfo['Action'] == ACTION_START)
+		{
+			$this->payload = pack('i1', $this->dataInfo['Index']['value']).$this->ptzSpeed->payload;
+		}
+		else 	// Add
+		{
+			$this->payload = MakePayload($this->dataInfo).MakePayload($this->ptzPosition->dataInfo);
+		}
+	}
+}
+?>

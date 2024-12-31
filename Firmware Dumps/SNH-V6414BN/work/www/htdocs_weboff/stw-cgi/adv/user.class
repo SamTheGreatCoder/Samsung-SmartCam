@@ -1,0 +1,91 @@
+<?php
+
+class UserConfiguration
+{
+	public $user;
+	public $payload;
+	public $headerInfo;
+
+	function __construct($_action=ACTION_GET_ALL)
+	{
+		for ($index=0; $index<MAX_USER_10; ++$index) {
+			$this->user[$index] = new User();
+		}
+		$this->headerInfo 	= array('Command'=>CMD_USER, 'Action'=>$_action);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		$userIndex = 1;
+		foreach ($GLOBALS['XMLArray'] as $data) {
+			if 		($data->GetName() == 'Admin')	SetData($this->user[0]->dataInfo, $this->user[0]->payload, $data);
+			else if 	($data->GetName() == 'Guest') 	SetData($this->user[MAX_USER_10-1]->dataInfo, $this->user[MAX_USER_10-1]->payload, $data);
+			else {				
+				SetData($this->user[$userIndex]->dataInfo, $this->user[$userIndex]->payload, $data);
+				$userIndex++;
+			}
+			
+		}
+		for ($index=$userIndex; $index<=10; ++$index) $this->user[$index]->init_data();
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack(MakeUnpackFormat('user', GetDataInfoLength($this->user[0]->dataInfo), MAX_USER_10), $_payload);
+		for ($index=0; $index<MAX_USER_10; ++$index) {
+			SetData($this->user[$index]->dataInfo, $this->user[$index]->payload, $dataArray['user'.$index]);
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = GetPayloads($this->user, MAX_USER_10);
+	}
+    
+    function SetPayloadForAddRemove($idx)
+	{
+		$this->payload = $this->user[$idx]->payload;
+	}
+}
+
+class User
+{
+	public $payload;
+	public $dataInfo;
+	
+	function __construct()
+	{
+		
+			$this->dataInfo = array(	'Enabled' 				=> array('value'=>0, 'type'=>'c1'),
+										'Name' 					=> array('value'=>'', 'type'=>'A16'),
+										'Password' 				=> array('value'=>'', 'type'=>'A17'),
+										'Level'					=>	array('value'=>1, 'type'=>'i1'),
+										'UserRightAudioIn' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightAudioOut' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightRelay' 		=> array('value'=>0, 'type'=>'c1'),
+										'UserRightPTZ' 		=> array('value'=>0, 'type'=>'c1'),
+										'UserRightProfile'	=> array('value'=>0, 'type'=>'c1'),
+										'OnvifUserLevel'		=> array('value'=>0, 'type'=>'c1'),
+										'Reserved' 				=> array('value'=>0, 'type'=>'A14'));		
+	}
+
+	function init_data()
+	{
+		
+			$this->dataInfo = array(	'Enabled' 				=> array('value'=>0, 'type'=>'c1'),
+										'Name' 					=> array('value'=>'', 'type'=>'A16'),
+										'Password' 				=> array('value'=>'', 'type'=>'A17'),
+										'Level'					=>	array('value'=>1, 'type'=>'i1'),
+										'UserRightAudioIn' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightAudioOut' 	=> array('value'=>0, 'type'=>'c1'),
+										'UserRightRelay' 		=> array('value'=>0, 'type'=>'c1'),
+										'UserRightPTZ' 		=> array('value'=>0, 'type'=>'c1'),
+										'UserRightProfile'	=> array('value'=>0, 'type'=>'c1'),
+										'OnvifUserLevel'		=> array('value'=>3, 'type'=>'c1'),
+										'Reserved' 				=> array('value'=>0, 'type'=>'A14'));
+		
+		$this->payload = MakePayload($this->dataInfo);
+	}
+}
+?>

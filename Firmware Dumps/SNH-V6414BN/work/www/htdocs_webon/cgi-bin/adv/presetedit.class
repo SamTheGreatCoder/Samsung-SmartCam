@@ -1,0 +1,305 @@
+<?php
+require_once ('imagesetting.class');
+require_once ('va.class');
+
+class PresetImageConfiguration
+{
+	public	$imageConf;
+
+	public	$payload;
+	public	$dataInfo;
+	public	$dataInfo2;
+	public	$headerInfo;
+	public	$unpackFormat;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo 	= array( 'Command'	=>CMD_PTZ_PRESET_ATTR, 'Action'=>$_action);
+		$this->dataInfo		= array( 'Index'		=>array('value'=>1, 'type'=>'i1'),
+											'TestCmd'	=>array('value'=>0, 'type'=>'c1'));
+		$this->dataInfo2 	= array(	'VideoSourceIndex'=> array('value'=>0, 'type'=>'i1'),
+											'AWC' 				=> array('value'=>0, 'type'=>'c1'),
+											'Reserved' 			=> array('value'=>'', 'type'=>'A63'));
+		$this->imageConf		= new ImageSetting();
+		$this->unpackFormat	=	MakeDataFormat($this->dataInfo).'A'.$this->imageConf->payloadLength.'imageConf';
+		if ($this->headerInfo['Action'] == ACTION_GET)
+		{
+			$this->payload = pack('i1', $this->dataInfo['Index']['value']);
+		}
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach ($GLOBALS['XMLArray'] as $name=>$data)
+		{
+			if			($name == 'ImageSetting')	$this->imageConf->ParserXML($data);
+			else if 	($name == 'Index')				$this->dataInfo['Index']['value'] = $data;
+			else if 	($name == 'TestCmd')			$this->dataInfo['TestCmd']['value'] = $data;
+			else											$this->dataInfo2[$name]['value'] = $data;
+		}
+
+		if ($this->headerInfo['Action'] == ACTION_GET || $this->headerInfo['Action'] == ACTION_STOP)
+		{
+			$this->payload = pack('i1', $this->dataInfo['Index']['value']);
+		}
+		else if ($this->headerInfo['Action'] == ACTION_START)
+		{
+			$this->payload = MakePayload($this->dataInfo2);
+		}
+		else
+		{
+			$this->SetPayload();
+		}
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		$this->dataInfo['Index']['value'] = $dataArray['Index'];
+		$this->imageConf->PayloadToArray($dataArray['imageConf']);
+	}
+
+	function SetPayload()
+	{
+		$this->imageConf->imageDayNightSchedule->SetPayload();
+		$this->imageConf->imagePreset->SetPayload();
+		$this->imageConf->SetPayload();
+		$this->payload = MakePayload($this->dataInfo).$this->imageConf->payload;
+	}
+
+	function GetXMLData()
+	{
+		$imageClassArray = array('imageSSDR', 'imageWhiteBalance', 'imageExposure', 'imageSpecial', 'imageFocus');
+		$msg = '';		
+		$msg .= '<ImageSetting>';
+		foreach ($imageClassArray as $classInstance) {
+			$msg .= MakeXMLData($this->imageConf->$classInstance->dataInfo, get_class($this->imageConf->$classInstance));
+		}
+		$msg .= '</ImageSetting>';
+
+		return $msg;
+	}
+}
+
+class PresetVAConfiguration
+{
+	public	$ivConf;
+	public	$mdConf;
+
+	public 	$payload;
+	public	$dataInfo;
+	public  	$headerInfo;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->headerInfo	= array( 'Command'=>CMD_PTZ_PRESET_VA, 'Action'=>$_action);
+		$this->dataInfo 	= array(	'Index'=> array('value'=>1, 'type'=>'i1'),
+											'Mode'=> array('value'=>0, 'type'=>'c1'));
+		$this->ivConf 		= new PresetIVConfiguration();
+		$this->mdConf 		= new PresetMDConfiguration();
+		if ($_action == ACTION_GET) {
+			$this->payload = pack('i1', $this->dataInfo['Index']['value']);
+		}
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$unpackFormat = MakeDataFormat($this->dataInfo).'A'.$this->ivConf->payloadLength.'ivConf/'.'A'.$this->mdConf->payloadLength.'mdConf/';
+		$dataArray = unpack($unpackFormat, $_payload);
+		$this->dataInfo['Index']['value'] = $dataArray['Index'];
+		$this->dataInfo['Mode']['value'] = $dataArray['Mode'];
+		$this->mdConf->PayloadToArray($dataArray['mdConf']);
+		$this->ivConf->PayloadToArray($dataArray['ivConf']);
+	}
+
+	function XMLtoArray($_menu)
+	{
+		foreach($GLOBALS['XMLArray'] as $name=>$value) {
+			if 		($name == 'MDConfiguration')	$this->mdConf->XMLtoArray($_menu, $value);
+			else if 	($name == 'IVConfiguration')	$this->ivConf->XMLtoArray($_menu, $value);
+			else 												$this->dataInfo[$name]['value'] = $value;
+		}
+		if ($this->headerInfo['Action'] == ACTION_GET)
+		{
+			$this->payload = pack('i1', $this->dataInfo['Index']['value']);
+		}
+		else
+		{
+			$this->SetPayload();
+		}
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).$this->ivConf->payload.$this->mdConf->payload;
+	}
+
+	function GetXMLData()
+	{
+		$msg = '';		
+		$msg .= '<VAConfiguration>';
+		$msg .= '<Mode>'.$this->dataInfo['Mode']['value'].'</Mode>';
+		$msg .= $this->ivConf->GetXMLData();
+		$msg .= $this->mdConf->GetXMLData();
+		$msg .= '</VAConfiguration>';
+		return $msg;
+	}	
+}
+
+class PresetIVConfiguration
+{
+	public 	$objectRule;
+	public 	$fullScreenRule;
+	public	$manualSize;
+
+	public 	$payload;
+	public	$dataInfo;
+	public 	$unpackFormat;
+	public	$payloadLength;
+
+	function __construct()
+	{
+		$this->dataInfo 	= array(	'Enabled' 			=> array('value'=>0, 'type'=>'c1'),
+											'AnalyticsType'	=> array('value'=>0, 'type'=>'c1'),
+											'Overlay' 			=> array('value'=>0, 'type'=>'c1'),
+											'VABoxDisplay' 	=> array('value'=>0, 'type'=>'c1'),
+											'Sensitivity' 		=> array('value'=>0, 'type'=>'c1'),
+											'ObjectSizeRule' 	=> array('value'=>0, 'type'=>'c1'));
+		for ($index=0; $index<MAX_IV_OBJECT; ++$index)
+			$this->objectRule[$index] = new IVObjectRule();
+		$this->fullScreenRule = new FullScreenRule();
+		$this->manualSize	 	= new IVObjectSizeManual();
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->dataInfo).'ivInfo/'.
+										MakeUnpackFormat('objectRule', $this->objectRule[0]->payloadLength, MAX_IV_OBJECT).
+										'A'.GetDataInfoLength($this->fullScreenRule->dataInfo).'fullScreenRule/'.
+										'A'.GetDataInfoLength($this->manualSize->dataInfo).'ManualSize/';
+		$this->payloadLength	=	GetDataInfoLength($this->dataInfo)+($this->objectRule[0]->payloadLength*MAX_IV_OBJECT)+GetDataInfoLength($this->fullScreenRule->dataInfo)+GetDataInfoLength($this->manualSize->dataInfo);
+	}
+
+	function XMLtoArray($_menu, $_xmlData='')
+	{
+		if ($_menu == 'IVConfiguration') $_xmlData = $GLOBALS['XMLArray'];
+		$index = 0;
+		foreach($_xmlData as $name=>$value) {
+			if ($name == 'IVObject') {
+				foreach ($value as $objectData) {
+					$this->objectRule[$index]->ParserXML($objectData);
+					$index++;
+				}
+			}
+			else if ($name == 'FullScreen') 	SetData($this->fullScreenRule->dataInfo, $this->fullScreenRule->payload, $value);
+			else if ($name == 'ManualSize')	SetData($this->manualSize->dataInfo, $this->manualSize->paylaod, $value);
+			else										$this->dataInfo[$name]['value'] = $value;
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$_payload = $_payload.'    ';
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		SetData($this->dataInfo, $this->payload, $dataArray['ivInfo']);
+		for ($index=0; $index<MAX_IV_OBJECT; ++$index)
+			$this->objectRule[$index]->UnpackData($dataArray['objectRule'.$index]);
+		SetData($this->fullScreenRule->dataInfo, $this->fullScreenRule->payload, $dataArray['fullScreenRule']);
+		$this->manualSize->UnpackData($dataArray['ManualSize']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->objectRule, MAX_IV_OBJECT).MakePayload($this->fullScreenRule->dataInfo).MakePayload($this->manualSize->dataInfo);
+	}
+
+	function GetXMLData()
+	{
+		$msg = '';
+		$msg .= '<IVConfiguration>';
+		$msg .= MakeXMLData($this->dataInfo);
+		$msg .= MakeXMLData($this->fullScreenRule->dataInfo, "FullScreen");
+		$msg .= MakeXMLData($this->manualSize->dataInfo, "ManualSize");
+		for ($index=0; $index<MAX_IV_OBJECT; ++$index) {
+			if ($this->objectRule[$index]->type == 1) {
+				$msg .= $this->objectRule[$index]->GetXMLData();
+			}
+			if ($this->objectRule[$index]->type == 2) {
+				$msg .= $this->objectRule[$index]->GetXMLData();
+			}
+		}
+		$msg .= '</IVConfiguration>';
+		return $msg;
+	}
+}
+
+class PresetMDConfiguration
+{
+	public	$objectRule;
+	public	$manualSize;
+
+	public	$payload;
+	public	$dataInfo;
+	public	$unpackFormat;
+	public	$payloadLength;
+
+	function __construct($_action=ACTION_GET)
+	{
+		$this->dataInfo 	= array(	'Enabled' 		=> array('value'=>0, 'type'=>'c1'),
+											'Overlay' 		=> array('value'=>0, 'type'=>'c1'),
+											'VABoxDisplay' => array('value'=>0, 'type'=>'c1'),
+											'Sensitivity'	=> array('value'=>0, 'type'=>'c1'),
+											'ObjectMode' 	=> array('value'=>0, 'type'=>'c1'),
+											'ObjectSizeRule' 	=> array('value'=>0, 'type'=>'c1'));
+		for ($index=0; $index<MAX_MD_OBJECT; ++$index)
+			$this->objectRule[$index] = new MDObjectArea();
+		$this->manualSize	 	= new IVObjectSizeManual();
+		$this->unpackFormat 	= 	'A'.GetDataInfoLength($this->dataInfo).'mdInfo/'.
+										MakeUnpackFormat('ObjectArea', $this->objectRule[0]->payloadLength, MAX_MD_OBJECT).'A'.GetDataInfoLength($this->manualSize->dataInfo).'ManualSize/';
+		$this->payloadLength = 	GetDataInfoLength($this->dataInfo)+($this->objectRule[0]->payloadLength*MAX_MD_OBJECT)+GetDataInfoLength($this->manualSize->dataInfo);
+	}
+
+	function XMLtoArray($_menu, $_xmlData='')
+	{
+		if ($_menu == 'MDConfiguration')	$_xmlData = $GLOBALS['XMLArray'];
+		foreach($_xmlData as $name=>$value) {
+			if (substr($name, 0, -1) == 'ObjectArea') {
+				$areaIndex = (int)substr($name, -1);
+				$this->objectRule[$areaIndex]->ParserXML($value);
+			}
+			else if 	($name == 'ManualSize')	SetData($this->manualSize->dataInfo, $this->manualSize->paylaod, $value);
+			else 										$this->dataInfo[$name]['value'] = trim($value);
+		}
+		$this->SetPayload();
+	}
+
+	function PayloadToArray($_payload)
+	{
+		$dataArray = unpack($this->unpackFormat, $_payload);
+		SetData($this->dataInfo, $this->payload, $dataArray['mdInfo']);
+		for ($index=0; $index<MAX_MD_OBJECT; ++$index) {
+			$this->objectRule[$index]->UnpackData($dataArray['ObjectArea'.$index]);
+		}
+		$this->manualSize->UnpackData($dataArray['ManualSize']);
+		$this->SetPayload();
+	}
+
+	function SetPayload()
+	{
+		$this->payload = MakePayload($this->dataInfo).GetPayloads($this->objectRule, MAX_MD_OBJECT).MakePayload($this->manualSize->dataInfo);
+	}
+
+	function GetXMLData()
+	{
+		$msg = '';
+		$msg .= "<MDConfiguration>";
+		$msg .= MakeXMLData($this->dataInfo);
+		$msg .= MakeXMLData($this->manualSize->dataInfo, "ManualSize");
+		for ($index=0; $index<MAX_MD_OBJECT; ++$index) {
+			if ($this->objectRule[$index]->dataInfo['NumPoint']['value'] >= 1 ) {
+				$msg .= $this->objectRule[$index]->GetXMLData();
+			}
+		}
+		$msg .= "</MDConfiguration>";
+		return $msg;
+	}
+}
+?>
