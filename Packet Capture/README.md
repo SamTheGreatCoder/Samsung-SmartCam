@@ -110,14 +110,17 @@ Since after the camera connects to Wi-Fi and switches to communicating through t
 5. Repeat step 3, but ensure that ```Enable decryption``` is checked, above the ```Decryption Keys``` option.
 6. Filter the Wireshark results with ```http```
 7. Done.
-<br><i>The following steps assume that you have perfromed the initial Wi-Fi setup on a single camera only once. 
+<br><i>The following screenshots assume that you have perfromed the initial Wi-Fi setup on a single camera only once. 
 </i><br>
+![alt text](<step 7 done.png>)
+<br>
 The inital Wi-Fi setup process is a 6-step procedure.
 1. Mobile device connects to camera getting for information.
 2. Camera responds with model and serial number.
+![alt text](<step 8 information query blanked.png>)
 3. Mobile device requests a list of visible access points from the camera.
 4. Camera scans for nearby access points, then responds with XML-formatted list.
+![alt text](<step 9 aplist blanked.png>)
 5. Mobile device send the user-specified Wi-Fi credentials to the camera.
+![alt text](<step 10 network config blanked.png>)
 6. Camera acknowledges and switches to station mode.
-
-TODO: Add pictures
