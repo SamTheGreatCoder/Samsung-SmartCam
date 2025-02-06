@@ -116,10 +116,13 @@ The following screenshots assume that you have perfromed the initial Wi-Fi setup
 </i>
 <img src="https://raw.githubusercontent.com/SamTheGreatCoder/Samsung-SmartCam/main/Packet%20Capture/images/Wireshark_Filtered_Results.png" alt="Wireshark Filtered Results">
 The inital Wi-Fi setup process is a 6-step procedure.
+<br>
 1. Mobile device connects to camera getting for information.
+<br>
 2. Camera responds with model and serial number.
 <img src="https://raw.githubusercontent.com/SamTheGreatCoder/Samsung-SmartCam/main/Packet%20Capture/images/Information_Query_Response.png" alt="Information Query Response">
 3. Mobile device requests a list of visible access points from the camera.
+<br>
 4. Camera scans for nearby access points, then responds with XML-formatted list.
 <img src="https://raw.githubusercontent.com/SamTheGreatCoder/Samsung-SmartCam/main/Packet%20Capture/images/AP_List_Response.png" alt="AP List Response">
 5. Mobile device send the user-specified Wi-Fi credentials to the camera.
