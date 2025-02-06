@@ -115,7 +115,7 @@ Since after the camera connects to Wi-Fi and switches to communicating through t
 The following screenshots assume that you have perfromed the initial Wi-Fi setup on a single camera only once. 
 </i>
 <br>
-![Wireshark Filtered Results](Wireshark_Filtered_Results.png)
+<img src="https://raw.githubusercontent.com/SamTheGreatCoder/Samsung-SmartCam/main/Packet%20Capture/images/Wireshark_Filtered_Results.png" alt="Wireshark Filtered Results">
 <br>
 The inital Wi-Fi setup process is a 6-step procedure.
 1. Mobile device connects to camera getting for information.
