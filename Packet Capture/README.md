@@ -112,15 +112,15 @@ Since after the camera connects to Wi-Fi and switches to communicating through t
 7. Done.
 <br><i>The following screenshots assume that you have perfromed the initial Wi-Fi setup on a single camera only once. 
 </i><br>
-![Base Wireshark packet capture screenshot](<step 7 done.png>)
+![Wireshark Filtered Results](https://github.com/user-attachments/assets/9fd99a96-7cd6-444a-95df-b973b4e88215)
 <br>
 The inital Wi-Fi setup process is a 6-step procedure.
 1. Mobile device connects to camera getting for information.
 2. Camera responds with model and serial number.
-![Camera's XML response to inital information request from setup device](<step 8 information query blanked.png>)
+![Information Query Response](https://github.com/user-attachments/assets/f8ed9ddc-6ed3-437b-a3ff-256bb99bb7fe)
 3. Mobile device requests a list of visible access points from the camera.
 4. Camera scans for nearby access points, then responds with XML-formatted list.
-![Camera's XML response to list of nearby scanned access points ](<step 9 aplist blanked.png>)
+![AP List Response](https://github.com/user-attachments/assets/94dbb45f-06b8-4157-a728-d5a7280ee14f)
 5. Mobile device send the user-specified Wi-Fi credentials to the camera.
-![Setup device network credentials sent to camera](<step 10 network config blanked.png>)
+![Network Config PUT](https://github.com/user-attachments/assets/c79b6aea-9416-47a1-9d5b-2f66b9f384b6)
 6. Camera acknowledges and switches to station mode.
