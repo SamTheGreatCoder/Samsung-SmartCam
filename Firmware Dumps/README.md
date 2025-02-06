@@ -1,7 +1,7 @@
 # Firmware Dumps
-While not officially "dumps" these are publically (last checked December 31, 2024) available firmware update archives from the SmartCam servers.
+While not officially "dumps" these were publically (last downloaded December 31, 2024) available firmware update archives from the SmartCam servers.
 
-## Download yourself:
+## Download yourself (website fails DNS lookup as of 2/6/25 - this method no longer works):
 http://www.samsungsmartcam.com/firmware/firmware.xml
 (found in `/work/www/htdocs_webon/stw-cgi-rest/system.php`)
 
