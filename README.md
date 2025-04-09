@@ -19,7 +19,7 @@ Samsung/Hanwha Techwin announced the discontinuation of the Samsung SmartCam and
 
 ## What may not work?
 - Two-way audio (despite the Android app for SmartCam+ making use of STUN for a connection to the camera, the two-way audio might still be relayed in a way that I have not been able to packet capture and understand yet. I am also unsure if two-way audio works through RTSP backchannel connections, though I doubt it.)
-- Viewing recorded media on the SD Card (this also might have been a feature that only works when relayed through SmartCam servers, though I did find a couple REST API endpoints relating to browsing through media on the SD Card)
 
 ## What doesn't work?
-- Unknown
+- Controlling SD card recording (at least with the current amount of work looking through the extracted firmware)
+- Viewing recorded media on the SD Card (partially because controlling SD card recording does not seem possible. This also might have been a feature that only works when relayed through SmartCam servers. I did find a couple REST API endpoints relating to browsing through media on the SD Card, but if you cannot enable recording then it is ultimately useless)
