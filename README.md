@@ -1,6 +1,6 @@
 # Samsung SmartCam Local Control Project
 
-Samsung/Hanwha Techwin announced the discontinuation of the Samsung SmartCam and Samsung SmartCam+ line of mobile applications on December 31, 2024. While camera models sold under this line are all considered EOL (End-of-life), I still have a collection of these fullly functional cameras actively in use, and I don't intend on discarding working devices.
+Samsung announced the discontinuation of the SmartCam line of mobile applications on December 31, 2024. Since then, camera models sold under this line are now EOL (End-of-life), I still have a collection of these fullly functional cameras actively in use, and I do not plan on discarding working devices.
 
 ## Goals (in no particular order)
 
