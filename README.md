@@ -1,30 +1,29 @@
-# Samsung SmartCam Local Control Project
+# Samsung SmartCam Local Control
 
 > [!NOTE]
 > Documentation is currently being migrated to the [wiki](https://github.com/SamTheGreatCoder/Samsung-SmartCam/wiki).
 
-Samsung/Hanwha Techwin announced the discontinuation of the Samsung SmartCam and Samsung SmartCam+ line of mobile applications on December 31, 2024. While camera models sold under this line are all considered EOL (End-of-life), I still have a collection of these fullly functional cameras actively in use, and I don't intend on discarding working devices.
+Samsung announced the discontinuation of the SmartCam line of mobile applications on December 31, 2024. Since then, camera models sold under this line are now EOL (End-of-life), I still have a collection of these fullly functional cameras actively in use, and I do not plan on discarding working devices.
 
 ## Goals (in no particular order)
 
-- [ ] Provide documentation recreating past, present, and future progress and work regarding these devices
-- [ ] Prevent the cameras from accessing the internet, turning them into locally controlled, NOT (Network of Things) devices.
-- [ ] Reverse engineer any available firmware for means of discovering available control/setting endpoints for the cameras
+- [ ] Documentation for past, present, and future work regarding these devices
+- [ ] Allow cameras to be locally controlled, "Network-of-Things" devices, at minimum without reliance on the original SmartCam servers.
+- [ ] Reverse engineer firmware for means discovering available control/setting endpoints for the cameras
 - [ ] Archive any related information towards any of the listed goals here
-- [ ] Create a REST API to MQTT bridge for ease of integration into smart home controllers (such as Home Assistant)
-- [ ] Create modified firwmare for the devices, restoring locked out functionality (such as ONVIF PTZ control on the SNH-V6410BN)
+- [ ] Create a REST API to MQTT bridge for integration with other software (including smart home controllers such as Home Assistant)
+- [ ] Modify firwmare for devices, (such as restoring locked out functionality like ONVIF PTZ control on the SNH-V6410BN)
 
-## NOTE: THIS PROJECT IS IN A VERY EARLY STAGE. MANY ASPECTS OF THIS REPOSITORY ARE UNFINISHED AND WILL BE MERELY DATA "DUMPS"
-
-- Currently in progress: documenting all possible camera API endpoint controls. (See `Camera Control`).
+> [!WARNING]
+> Everything is in still in a very early state, currently documenting the currently found API controls. (See 'Camera Control').
 
 ## What works? (primarily tested on SNH-V6410BN/SNH-V6414BN/SNH-V6430BN)
 
-- Connecting the device to Wi-Fi from a factory default state (WPA security with DHCP is the only tested method right now. None/WEP should be possible, and possibly static addressing too) **(TODO: Document)**
-- Setting the `admin` user account password after joining the device to Wi-Fi. (RTSP server and streams become active after this) **(TODO: Document)**
-- Controlling various settings of the camera (this includes Pan/Tilt on included models) **(TODO: Document/Build list)**
+- Connecting the device to Wi-Fi from a factory default state (WPA(2) security with DHCP is the only tested method right now. None/WEP should work like normal, additionally, static IP address assignment may be possible.) **(TODO: Document)**
+- Setting the `admin` user account password after successfully joining the camera to Wi-Fi. (RTSP server and streams become active after this) **(TODO: Document)**
+- Controlling settings of the camera (this includes Pan/Tilt on included models) **(TODO: Document/Build list)**
 - Multiple quality streams from the cameras over RTSP **(TODO: Document)**
-- Two-way audio through RTSP/ONVIF Profile T (https://github.com/AlexxIT/go2rtc?tab=readme-ov-file#two-way-audio) **(TODO: Document/Instruct)**
+- Two-way audio through RTSP/ONVIF Profile T (Tested with [go2rtc](https://github.com/AlexxIT/go2rtc?tab=readme-ov-file#two-way-audio) **(TODO: Document/Instruct)**
 
 ## What may not work?
 
