@@ -1,0 +1,2 @@
+# Ignore the VSCode workspace file. It never needed to be uploaded in the first place
+*.code-workspace
