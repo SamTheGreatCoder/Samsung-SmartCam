@@ -1,5 +1,8 @@
 # Samsung SmartCam Local Control Project
 
+> [!NOTE]
+> Documentation is currently being migrated to the [wiki](https://github.com/SamTheGreatCoder/Samsung-SmartCam/wiki).
+
 Samsung/Hanwha Techwin announced the discontinuation of the Samsung SmartCam and Samsung SmartCam+ line of mobile applications on December 31, 2024. While camera models sold under this line are all considered EOL (End-of-life), I still have a collection of these fullly functional cameras actively in use, and I don't intend on discarding working devices.
 
 ## Goals (in no particular order)
