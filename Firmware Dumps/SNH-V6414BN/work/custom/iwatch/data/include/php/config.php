@@ -25,7 +25,7 @@ class iWatchConfig {
 	const IWL_LOGGING_PATH  = '/tmp/logs';
 	const IWL_CAMERA_DATA_PATH  = '/tmp/camera_data';
 	const IWL_ACTIVATION_DATA = '/tmp/iwl.activation.dat';
-	const IWL_FW_KEY = 'b19fa6ecd52f0439dfdb7a123de6e04e'; 
+	const IWL_FW_KEY_PLACEHOLDER = '<REPLACE_WITH_FIRMWARE_KEY>'; // Do not hardcode keys — load from environment or secrets file at runtime
 	const IWL_DEFAULT_CREDS = '/tmp/daemon/cfg/lighttpd.user';
 	const MAX_FW_RETRIES = 4;
 
@@ -33,9 +33,9 @@ class iWatchConfig {
     public static function getServer( $installType = 0 ){
             $_servers  = array(
 	                        array("index"=>0,"sapi"=>"https://api.mysmartcamcloud.com","fw"=>"https://updates.mysmartcamcloud.com/firmware/"), // production
-	                        array("index"=>1,"sapi"=>"http://preprodapi.smartcamcloud.ca","fw"=>"http://updates.smartcamcloud.ca/firmware/"), // preprod
-	                        array("index"=>2,"sapi"=>"http://testapi.smartcamcloud.ca","fw"=>"http://updates.smartcamcloud.ca/firmware/"),  // test
-	                        array("index"=>3,"sapi"=>"http://devapi.smartcamcloud.ca","fw"=>"http://updates.smartcamcloud.ca/firmware/")  // dev
+	                        array("index"=>1,"sapi"=>"https://preprodapi.smartcamcloud.ca","fw"=>"https://updates.smartcamcloud.ca/firmware/"), // preprod
+	                        array("index"=>2,"sapi"=>"https://testapi.smartcamcloud.ca","fw"=>"https://updates.smartcamcloud.ca/firmware/"),  // test
+	                        array("index"=>3,"sapi"=>"https://devapi.smartcamcloud.ca","fw"=>"https://updates.smartcamcloud.ca/firmware/")  // dev
                             );
             // determine if the value is out of range...if so set default
             $installType = (isset($_servers[$installType]))?$installType:0;

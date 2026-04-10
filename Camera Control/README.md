@@ -33,13 +33,13 @@ The list of files in the working directory are as shows:
 **Note:** Change the IP address to the IP address of your camera, and change password to the admin password set on your camera. The username of admin should not need to changed as the camera does not seemingly permit other user IDs except admin.
 
 ```shell
-curl -X PUT -d '{"Channel":"0","DayNightMode":"Auto"}' --digest -u admin:password http://192.168.0.243/stw-cgi-rest/image/camera
+curl -X PUT -d '{"Channel":"0","DayNightMode":"Auto"}' --digest -u admin:<YOUR_PASSWORD> http://192.168.0.243/stw-cgi-rest/image/camera
 ```
 
 ### *EXAMPLE:* Retrieve the camera's model and serial number string
 
 ```shell
-curl -X GET --digest -u admin:password http://192.168.0.243/information
+curl -X GET --digest -u admin:<YOUR_PASSWORD> http://192.168.0.243/information
 ```
 
 ```xml
@@ -66,7 +66,7 @@ url = 'http://192.168.0.243/stw-cgi-rest/system/factoryreset'
 data = {"ExcludeSettings":"0"}
 
 # Connect to the camera, use digest authentication, and PUT the payload
-response = requests.put(url, auth=HTTPDigestAuth('admin', 'password'), data=data)
+response = requests.put(url, auth=HTTPDigestAuth('admin', '<YOUR_PASSWORD>'), data=data)
 
 # Print the result
 print(response.status_code)
@@ -84,7 +84,7 @@ from requests.auth import HTTPDigestAuth
 url = 'http://192.168.0.243/stw-cgi-rest/image/imageenhancements'
 
 # Connect to the camera, use digest authentication, and GET the payload
-response = requests.get(url, auth=HTTPDigestAuth('admin', 'password'))
+response = requests.get(url, auth=HTTPDigestAuth('admin', '<YOUR_PASSWORD>'))
 
 print(response.status_code)
 print(response.headers)
@@ -155,10 +155,10 @@ from requests.auth import HTTPDigestAuth
 url = 'http://192.168.0.243/stw-cgi-rest/security/users'
 
 # There is only one user ID allowed, keep the Index set to 0, and UserID to admin, while setting the password for that user, to "password".
-data = {"Index":"0","UserID":"admin","Password":"password"}
+data = {"Index":"0","UserID":"admin","Password":"<YOUR_NEW_PASSWORD>"}
 
 # Connect to the camera, use digest authentication, and PUT the payload
-response = requests.put(url, auth=HTTPDigestAuth('admin', 'passwor'), data=data)
+response = requests.put(url, auth=HTTPDigestAuth('admin', '<YOUR_CURRENT_PASSWORD>'), data=data)
 
 print(response.status_code)
 print(response.headers)

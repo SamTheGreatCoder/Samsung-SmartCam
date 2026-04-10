@@ -1,5 +1,16 @@
 <?php
+require_once '/mnt/custom/iwatch/include/php/util.php';
+require_once '/mnt/custom/iwatch/include/php/config.php';
 
+// Authenticate the request
+$credentials = iWatchUtils::loadCredentials();
+if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_PW'])
+    || $_SERVER['PHP_AUTH_USER'] !== $credentials['username']
+    || $_SERVER['PHP_AUTH_PW'] !== $credentials['password']) {
+	header('WWW-Authenticate: Basic realm="iWatch API"');
+	header('HTTP/1.0 401 Unauthorized', true, 401);
+	exit;
+}
 
    if (isset($_SERVER['QUERY_STRING'])) {
        $filename    =   basename($_SERVER['QUERY_STRING']) ;

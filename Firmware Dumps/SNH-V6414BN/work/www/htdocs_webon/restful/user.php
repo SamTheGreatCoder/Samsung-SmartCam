@@ -32,7 +32,8 @@ switch ($_SERVER['REQUEST_METHOD']) {
 			$xw->startDocument('1.0','UTF-8');
 			$xw->startElement ('User');
 			$xw->writeElement ('id', $id);
-			$xw->writeElement ('password', $password);
+			$pwdBlock = str_repeat('*', strlen($password));
+			$xw->writeElement ('password', $pwdBlock);
 			$xw->writeElement ('level', $level);
 			$xw->endElement();
 			$xw->endDocument();

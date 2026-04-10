@@ -248,7 +248,8 @@ class iWatchInstaller
 
 		// build request query string		
 		$installType = http_build_query( array( 'type' => $this->_server["index"] ) );
-		$token = iWatchUtils::get_token(iWatchConfig::IWL_FW_KEY, $serial);
+		$fw_key = getenv('IWL_FW_KEY') ?: iWatchConfig::IWL_FW_KEY_PLACEHOLDER;
+		$token = iWatchUtils::get_token($fw_key, $serial);
 		$reqStr = "/usr/bin/curl '" . $this->_server["fw"] . "/index.php?" .$installType. "' -k -s -H 'X-Auth-Token:".$token. "'  -H 'X-Camera-Serial:".$serial."' -H 'X-Camera-Model:".$camera_model."' -o " . $tmp_buffer;
 		$this->logger->write("Installer -  downloading firmware: " . $reqStr);
 

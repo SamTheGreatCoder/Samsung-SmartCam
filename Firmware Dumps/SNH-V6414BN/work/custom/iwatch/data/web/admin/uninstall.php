@@ -55,6 +55,18 @@ if ($_SERVER['REQUEST_METHOD'] != 'POST') {
 	exit;
 }
 
+// Authenticate the request
+require_once '/mnt/custom/iwatch/include/php/util.php';
+require_once '/mnt/custom/iwatch/include/php/config.php';
+$credentials = iWatchUtils::loadCredentials();
+if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_PW'])
+    || $_SERVER['PHP_AUTH_USER'] !== $credentials['username']
+    || $_SERVER['PHP_AUTH_PW'] !== $credentials['password']) {
+	header('WWW-Authenticate: Basic realm="iWatch Admin"');
+	header('HTTP/1.0 401 Unauthorized', true, 401);
+	exit;
+}
+
 // Instantiate iWatch Installer and run with POST params
 $iwlUninstaller = new iWatchUninstaller();
 $iwlUninstaller->run( $_POST );

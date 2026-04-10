@@ -20,7 +20,7 @@ class Curl
 
                           );
 
-    private $args = "-k -s -w '\nMETADATA:total_time=%{time_total}&http_code=%{http_code}\n'";
+    private $args = "-s -w '\nMETADATA:total_time=%{time_total}&http_code=%{http_code}\n'";
     private $logger;
     private $url = null;
     private $response = null;
@@ -106,14 +106,16 @@ class Curl
 
     public function setBasicAuthentication($username, $password = '')
     {
-                $this->setOpt("credentials", $username . ":" . $password);
+                $escapedCreds = escapeshellarg($username . ":" . $password);
+                $option = $this->_opts_map["credentials"];
+                $this->args .= " " . $option . " " . $escapedCreds;
     }
 
     public function setOpt($option, $value)
     {
                 $option = $this->_opts_map[$option];
                 if (!empty($option)) $this->args .= " " . $option;
-                if (!empty($value)) $this->args .= " " .  "'" . $value . "'";
+                if (!empty($value)) $this->args .= " " . escapeshellarg($value);
     }
 
     public function setHeader($header)
@@ -198,7 +200,7 @@ class Curl
     }
 
     public function setRawData( $data ){
-            $this->args .= " --data " . "'" . $data . "'";
+            $this->args .= " --data " . escapeshellarg($data);
     }
 
 
@@ -207,11 +209,11 @@ class Curl
         $requestStr = Curl::CURL . " '" . $this->url . "' " . $this->args;
         if ($this->async){
                 // detatch and ignore response
-                $this->logger->write($requestStr);
+                $this->logger->write(preg_replace('/-u\s+\S+/', '-u [REDACTED]', $requestStr));
                 exec( $requestStr . " >> /tmp/logs/iwl.installer.log 2>&1 &");
         } else {
             for ($i = 0; $i < Curl::CURL_RETRIES; $i++){
-                $this->logger->write($requestStr);
+                $this->logger->write(preg_replace('/-u\s+\S+/', '-u [REDACTED]', $requestStr));
                 ob_start();
                 system($requestStr,$ret);
                 $response = ob_get_contents();

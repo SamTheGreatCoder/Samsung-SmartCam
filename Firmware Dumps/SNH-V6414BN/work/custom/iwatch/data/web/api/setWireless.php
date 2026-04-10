@@ -20,6 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] != 'POST') {
 	exit;
 }
 
+// Authenticate the request
+$credentials = iWatchUtils::loadCredentials();
+if (!isset($_SERVER['PHP_AUTH_USER']) || !isset($_SERVER['PHP_AUTH_PW'])
+    || $_SERVER['PHP_AUTH_USER'] !== $credentials['username']
+    || $_SERVER['PHP_AUTH_PW'] !== $credentials['password']) {
+	header('WWW-Authenticate: Basic realm="iWatch API"');
+	header('HTTP/1.0 401 Unauthorized', true, 401);
+	exit;
+}
+
 $content  = file_get_contents("php://input");
 $data = iWatchUtils::decodeJSON( iWatchUtils::sanitizeJSON( $content ) );
 
